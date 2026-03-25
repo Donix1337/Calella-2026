@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calella 2026 — Training Diary</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: #e2ddd7;
+    --border-strong: #c8c3bb;
+    --text: #1a1916;
+    --text-2: #6b6760;
+    --text-3: #a09d99;
+    --accent: #1a1916;
+    --teal: #0d7a5f;
+    --teal-bg: #e8f5f1;
+    --amber: #b06f0a;
+    --amber-bg: #fdf3e3;
+    --red: #c0392b;
+    --red-bg: #fdeaea;
+    --blue: #1a5fa8;
+    --blue-bg: #e8f0fb;
+    --purple: #5b3fa8;
+    --purple-bg: #f0edfb;
+    --font-display: 'DM Serif Display', serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* LAYOUT */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .main { flex: 1; overflow-y: auto; padding: 32px; min-width: 0; }
+
+  /* SIDEBAR */
+  .sidebar-brand {
+    padding: 24px 20px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-brand h1 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.2;
+  }
+  .sidebar-brand p {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 4px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .sidebar-nav { padding: 12px 0; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--text); color: #fff; font-weight: 500; }
+  .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+  .sidebar-section-label {
+    padding: 16px 20px 6px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 500;
+  }
+  .week-nav-item {
+    padding: 7px 20px;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .week-nav-item:hover { color: var(--text); background: var(--surface2); }
+  .week-nav-item.active { color: var(--text); font-weight: 500; }
+  .week-badge {
+    font-size: 10px;
+    background: var(--surface2);
+    border-radius: 999px;
+    padding: 1px 7px;
+    color: var(--text-3);
+  }
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .stats-row { display: flex; gap: 12px; }
+  .stat-mini { text-align: center; flex: 1; }
+  .stat-mini .val { font-size: 14px; font-weight: 500; color: var(--text); font-family: var(--font-display); }
+  .stat-mini .lbl { font-size: 10px; color: var(--text-3); letter-spacing: 0.04em; }
+
+  /* PAGE HEADER */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+  }
+  .page-title { font-family: var(--font-display); font-size: 28px; font-weight: 400; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-3); margin-top: 3px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: var(--font-body);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn-primary:hover { background: #333; }
+
+  /* TODAY VIEW */
+  .today-date-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .today-day-num {
+    font-family: var(--font-display);
+    font-size: 52px;
+    line-height: 1;
+    color: var(--text);
+    min-width: 64px;
+  }
+  .today-day-info h2 { font-size: 18px; font-weight: 500; }
+  .today-day-info p { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+  .camp-progress {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+  }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-bottom: 8px; }
+  .progress-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--text); border-radius: 2px; transition: width 0.4s; }
+  .sessions-grid { display: flex; flex-direction: column; gap: 12px; }
+
+  /* SESSION CARD */
+  .session-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .session-card:hover { border-color: var(--border-strong); }
+  .session-card .type-bar {
+    position: absolute;
+    left: 0; top: 12px; bottom: 12px;
+    width: 3px;
+    border-radius: 0 2px 2px 0;
+  }
+  .session-card.swim .type-bar { background: var(--blue); }
+  .session-card.land .type-bar { background: var(--teal); }
+  .session-card.rest .type-bar { background: var(--text-3); }
+  .session-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .session-type-badge {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .session-card.swim .session-type-badge { background: var(--blue-bg); color: var(--blue); }
+  .session-card.land .session-type-badge { background: var(--teal-bg); color: var(--teal); }
+  .session-card.rest .session-type-badge { background: var(--surface2); color: var(--text-3); }
+  .session-time { font-size: 12px; color: var(--text-3); }
+  .session-title { font-family: var(--font-display); font-size: 17px; font-weight: 400; margin-bottom: 8px; }
+  .session-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .meta-chip {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    background: var(--bg);
+  }
+  .meta-chip.intensity { border-color: var(--border-strong); color: var(--text); font-weight: 500; }
+  .session-focus { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .session-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .notes-field {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    resize: vertical;
+    min-height: 56px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .notes-field:focus { border-color: var(--border-strong); }
+  .completed-stamp {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--teal);
+    letter-spacing: 0.05em;
+    background: var(--teal-bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* WEEK VIEW */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .week-nav .week-label { font-family: var(--font-display); font-size: 20px; font-weight: 400; flex: 1; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .day-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 160px;
+  }
+  .day-col.today-col { border-color: var(--text); }
+  .day-col-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .day-col-name { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 500; }
+  .day-col-num { font-family: var(--font-display); font-size: 16px; }
+  .day-col.today-col .day-col-num { color: var(--text); font-weight: 400; }
+  .day-sessions { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .week-session-pill {
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .week-session-pill:hover { opacity: 0.8; }
+  .week-session-pill.swim { background: var(--blue-bg); color: var(--blue); }
+  .week-session-pill.land { background: var(--teal-bg); color: var(--teal); }
+  .week-session-pill.rest { background: var(--surface2); color: var(--text-3); }
+  .week-session-pill .pill-title { font-weight: 500; }
+  .week-session-pill .pill-meta { opacity: 0.75; font-size: 10px; margin-top: 1px; }
+  .add-session-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 26px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 5px;
+    font-size: 16px;
+    color: var(--text-3);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .add-session-btn:hover { background: var(--surface2); color: var(--text-2); border-color: var(--border-strong); }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .modal-title { font-family: var(--font-display); font-size: 20px; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--border-strong); }
+  .form-textarea { resize: vertical; min-height: 72px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none; border: none;
+    font-size: 20px; cursor: pointer;
+    color: var(--text-3);
+    line-height: 1;
+    padding: 4px;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  /* EMPTY STATE */
+  .empty-day { padding: 20px 12px; text-align: center; color: var(--text-3); font-size: 12px; }
+
+  /* SUMMARY BANNER */
+  .summary-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .summary-item { text-align: center; }
+  .summary-val { font-family: var(--font-display); font-size: 20px; color: var(--text); }
+  .summary-lbl { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .hidden { display: none !important; }
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* LOGIN SCREEN */
+  .login-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 48px 40px;
+    width: 340px;
+  }
+  .login-card h2 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 400;
+    margin-bottom: 4px;
+  }
+  .login-card > p {
+    color: var(--text-3);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 28px;
+  }
+  .login-error {
+    color: var(--red);
+    font-size: 12px;
+    min-height: 16px;
+    margin-bottom: 10px;
+  }
+  .signout-row {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .signout-row button {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 0;
+    font-size: 12px;
+    color: var(--text-2);
+    cursor: pointer;
+    font-family: var(--font-body);
+  }
+  .signout-row button:hover { border-color: var(--border-strong); color: var(--text); }
+
+  @media (max-width: 900px) {
+    .week-grid { grid-template-columns: repeat(2, 1fr); }
+    .sidebar { width: 180px; min-width: 180px; }
+  }
+  @media (max-width: 640px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    .week-grid { grid-template-columns: 1fr; }
+    .main { padding: 20px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen hidden" id="login-screen">
+  <div class="login-card">
+    <h2>Calella '26</h2>
+    <p>Training Camp</p>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="login-email" placeholder="you@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" class="form-input" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')signIn()">
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="signIn()">Sign in</button>
+  </div>
+</div>
+
+<div class="app hidden" id="app-shell">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h1>Calella '26</h1>
+      <p>Training Camp</p>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showView('today')" id="nav-today">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="12" height="11" rx="2"/>
+          <path d="M5 2v2M11 2v2M2 7h12"/>
+        </svg>
+        Today
+      </button>
+      <button class="nav-item" onclick="showView('week')" id="nav-week">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="4" width="14" height="10" rx="2"/>
+          <path d="M1 8h14M5.5 4V2M10.5 4V2"/>
+        </svg>
+        Week View
+      </button>
+    </nav>
+    <div class="sidebar-section-label">Weeks</div>
+    <div id="week-links"></div>
+    <div class="sidebar-footer">
+      <div class="stats-row">
+        <div class="stat-mini">
+          <div class="val" id="sidebar-total-km">—</div>
+          <div class="lbl">Total km</div>
+        </div>
+        <div class="stat-mini">
+          <div class="val" id="sidebar-sessions">—</div>
+          <div class="lbl">Sessions</div>
+        </div>
+        <div class="stat-mini">
+          <div class="val" id="sidebar-days">16</div>
+          <div class="lbl">Days</div>
+        </div>
+      </div>
+      <div class="signout-row">
+        <button onclick="signOut()">Sign out</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- TODAY VIEW -->
+    <div id="view-today">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="today-title">Today</div>
+          <div class="page-subtitle" id="today-subtitle"></div>
+        </div>
+        <button class="btn btn-primary" onclick="openAddModal(null, 'today')">+ Add session</button>
+      </div>
+      <div class="camp-progress">
+        <div class="progress-label">
+          <span>Camp progress</span>
+          <span id="progress-text">Day 0 of 16</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div class="summary-banner" id="today-summary"></div>
+      <div class="sessions-grid" id="today-sessions"></div>
+    </div>
+
+    <!-- WEEK VIEW -->
+    <div id="view-week" class="hidden">
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="week-title">Week 1</div>
+          <div class="page-subtitle" id="week-subtitle"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="changeWeek(-1)">← Prev</button>
+          <button class="btn" onclick="changeWeek(1)">Next →</button>
+          <button class="btn btn-primary" onclick="openAddModal(null, 'week')">+ Add session</button>
+        </div>
+      </div>
+      <div class="summary-banner" id="week-summary"></div>
+      <div class="week-grid" id="week-grid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop hidden" id="modal-backdrop" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">×</button>
+    <div class="modal-title" id="modal-title">Add Session</div>
+    <div class="form-group">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-input" id="f-date">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Time</label>
+        <input type="text" class="form-input" id="f-time" placeholder="e.g. 11:00–13:00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type</label>
+        <select class="form-select" id="f-type">
+          <option value="swim">Swim</option>
+          <option value="land">Land (Gym/Run)</option>
+          <option value="rest">Rest / Travel</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Title</label>
+      <input type="text" class="form-input" id="f-title" placeholder="e.g. Morning swim — I3-4">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Volume (m)</label>
+        <input type="number" class="form-input" id="f-volume" placeholder="e.g. 5000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Intensity</label>
+        <input type="text" class="form-input" id="f-intensity" placeholder="e.g. I3-4">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Focus / Notes</label>
+      <textarea class="form-textarea" id="f-focus" placeholder="e.g. Bein, Pull, Race pace work..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-delete-btn" onclick="deleteSession()" style="color:var(--red);border-color:var(--red);display:none">Delete</button>
+      <button class="btn" onclick="closeModalDirect()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSession()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// DATA — all sessions from the Calella 2026 plan
+// ============================================================
+const CAMP_START = new Date('2026-03-23');
+const CAMP_END   = new Date('2026-04-07');
+
+function dateStr(d) {
+  return d.toISOString().split('T')[0];
+}
+function addDays(d, n) {
+  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+}
+
+const PLAN_SESSIONS = [
+  // ── Week 1 ──────────────────────────────────────────────
+  // Mon 23 Mar — no swim, travel/arrival
+  { date:'2026-03-23', type:'rest', title:'Arrival day', time:'', volume:0, intensity:'', focus:'Travel to Calella' },
+
+  // Tue 24 Mar
+  { date:'2026-03-24', type:'land', title:'Run', time:'08:00–08:30', volume:0, intensity:'', focus:'Løp' },
+  { date:'2026-03-24', type:'swim', title:'Morning swim — I3-4', time:'11:00–13:00', volume:5000, intensity:'I3-4', focus:'Kont' },
+  { date:'2026-03-24', type:'swim', title:'Evening swim — I1', time:'18:30–20:30', volume:5000, intensity:'I1', focus:'Kont' },
+
+  // Wed 25 Mar
+  { date:'2026-03-25', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-03-25', type:'swim', title:'Morning swim — I2+7', time:'11:00–13:00', volume:5000, intensity:'I2+7', focus:'Bein' },
+  { date:'2026-03-25', type:'swim', title:'Evening swim — I1+8', time:'18:30–20:30', volume:5000, intensity:'I1+8', focus:'Bein' },
+
+  // Thu 26 Mar
+  { date:'2026-03-26', type:'swim', title:'Morning swim — I6 Race', time:'11:00–13:00', volume:5000, intensity:'I6', focus:'Race' },
+  { date:'2026-03-26', type:'swim', title:'Evening swim — I6 Race', time:'18:30–20:30', volume:4500, intensity:'I6', focus:'Race' },
+
+  // Fri 27 Mar
+  { date:'2026-03-27', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-03-27', type:'swim', title:'Morning swim — Vo2 max', time:'11:00–13:00', volume:5000, intensity:'I5', focus:'Vo2 max' },
+  { date:'2026-03-27', type:'swim', title:'Evening swim — I2', time:'18:30–20:30', volume:5000, intensity:'I2', focus:'Kont' },
+
+  // Sat 28 Mar
+  { date:'2026-03-28', type:'land', title:'Run', time:'08:00–08:30', volume:0, intensity:'', focus:'Løp' },
+  { date:'2026-03-28', type:'swim', title:'Morning swim — I2+8 Bein', time:'11:00–13:00', volume:5000, intensity:'I2+8', focus:'Bein' },
+  { date:'2026-03-28', type:'swim', title:'Evening swim — I6 BES', time:'18:30–20:30', volume:3500, intensity:'I5-6', focus:'BES' },
+
+  // Sun 29 Mar
+  { date:'2026-03-29', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-03-29', type:'swim', title:'Morning swim — I1 Rest', time:'11:00–13:00', volume:4000, intensity:'I1', focus:'Rest' },
+  { date:'2026-03-29', type:'swim', title:'Evening swim — FES', time:'18:30–20:30', volume:4000, intensity:'I6-7', focus:'FES' },
+
+  // ── Week 2 ──────────────────────────────────────────────
+  // Mon 30 Mar
+  { date:'2026-03-30', type:'land', title:'Run', time:'08:00–08:30', volume:0, intensity:'', focus:'Løp' },
+  { date:'2026-03-30', type:'swim', title:'Morning swim — I3-4', time:'11:00–13:00', volume:5000, intensity:'I3-4', focus:'Kont' },
+  { date:'2026-03-30', type:'swim', title:'Evening swim — I1 Kont', time:'18:30–20:30', volume:5000, intensity:'I1', focus:'Kont' },
+
+  // Tue 31 Mar
+  { date:'2026-03-31', type:'swim', title:'Morning swim — I6 Race', time:'11:00–13:00', volume:5000, intensity:'I6', focus:'Race' },
+  { date:'2026-03-31', type:'swim', title:'Evening swim — I2+8 Bein', time:'18:30–20:30', volume:5000, intensity:'I2+8', focus:'Bein' },
+
+  // Wed 1 Apr
+  { date:'2026-04-01', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-04-01', type:'swim', title:'Morning swim — Vo2 max', time:'11:00–13:00', volume:4000, intensity:'I5', focus:'Vo2 max' },
+  { date:'2026-04-01', type:'swim', title:'Evening swim — I2 Pull', time:'18:30–20:30', volume:3500, intensity:'I2', focus:'Pull' },
+
+  // Thu 2 Apr
+  { date:'2026-04-02', type:'swim', title:'Morning swim — I2+8 Rest', time:'11:00–13:00', volume:4000, intensity:'I2+8', focus:'Rest' },
+  { date:'2026-04-02', type:'swim', title:'Evening swim — I7 FES', time:'18:30–20:30', volume:3500, intensity:'I7', focus:'FES' },
+
+  // Fri 3 Apr
+  { date:'2026-04-03', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-04-03', type:'swim', title:'Morning swim — I6 Race', time:'11:00–13:00', volume:4000, intensity:'I6', focus:'Race' },
+  { date:'2026-04-03', type:'swim', title:'Evening swim — I1 Kont', time:'18:30–20:30', volume:3500, intensity:'I1', focus:'Kont' },
+
+  // Sat 4 Apr
+  { date:'2026-04-04', type:'land', title:'Run', time:'08:00–08:30', volume:0, intensity:'', focus:'Løp' },
+  { date:'2026-04-04', type:'swim', title:'Morning swim — I6 Race', time:'11:00–13:00', volume:4000, intensity:'I6', focus:'Race' },
+  { date:'2026-04-04', type:'swim', title:'Evening swim — I2-3 Pull/Bein', time:'18:30–20:30', volume:4500, intensity:'I2-3', focus:'Pull/Bein' },
+
+  // Sun 5 Apr
+  { date:'2026-04-05', type:'land', title:'Gym / Styrke', time:'09:30–10:30', volume:0, intensity:'', focus:'Styrke' },
+  { date:'2026-04-05', type:'swim', title:'Morning swim — I1 Rest', time:'11:00–13:00', volume:3000, intensity:'I1', focus:'Rest' },
+  { date:'2026-04-05', type:'swim', title:'Evening swim — I6 BES', time:'18:30–20:30', volume:3500, intensity:'I5-6', focus:'BES' },
+
+  // Mon 6 Apr
+  { date:'2026-04-06', type:'land', title:'Run', time:'08:00–08:30', volume:0, intensity:'', focus:'Løp' },
+  { date:'2026-04-06', type:'swim', title:'Morning swim — I6 Race', time:'11:00–13:00', volume:5000, intensity:'I6', focus:'Race' },
+  { date:'2026-04-06', type:'swim', title:'Evening swim — I7 FES', time:'18:30–20:30', volume:4500, intensity:'I7', focus:'FES' },
+
+  // Tue 7 Apr — departure
+  { date:'2026-04-07', type:'swim', title:'Morning swim — I1 Rest', time:'11:00–13:00', volume:4000, intensity:'I1', focus:'Rest' },
+  { date:'2026-04-07', type:'rest', title:'Departure', time:'', volume:0, intensity:'', focus:'Reise heim' },
+];
+
+// ============================================================
+// SUPABASE CLIENT
+// ============================================================
+const { createClient } = supabase;
+const sb = createClient(
+  'https://ffvbcbqkddceqiqjxjor.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmdmJjYnFrZGRjZXFpcWp4am9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ0NTA2MzUsImV4cCI6MjA5MDAyNjYzNX0.GdKl5audDTXhA_tgAFx8Jok-W8BzF6Pur7bPj3XvhzA'
+);
+
+// ============================================================
+// STATE
+// ============================================================
+let sessions = [];
+let currentUser = null;
+let currentWeek = 1;
+let editingId = null;
+let addModalContext = null;
+
+async function loadData() {
+  const { data, error } = await sb.from('sessions').select('*');
+  if (error) { showToast('Error loading sessions'); console.error(error); return; }
+  if (data && data.length > 0) {
+    sessions = data.map(s => ({ ...s, date: typeof s.date === 'string' ? s.date.slice(0, 10) : s.date }));
+  } else {
+    // First load — seed plan sessions into Supabase
+    const plan = PLAN_SESSIONS.map((s, i) => ({ ...s, id: 'plan_' + i, completed: false }));
+    const { data: inserted, error: insErr } = await sb.from('sessions').insert(plan).select();
+    if (insErr) { showToast('Error seeding sessions'); console.error(insErr); return; }
+    sessions = inserted || plan;
+  }
+}
+
+function getSessionsForDate(dateStr) {
+  return sessions.filter(s => s.date === dateStr).sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+}
+
+// ============================================================
+// VIEWS
+// ============================================================
+let currentView = 'today';
+
+function showView(view) {
+  currentView = view;
+  document.getElementById('view-today').classList.toggle('hidden', view !== 'today');
+  document.getElementById('view-week').classList.toggle('hidden', view !== 'week');
+  document.getElementById('nav-today').classList.toggle('active', view === 'today');
+  document.getElementById('nav-week').classList.toggle('active', view === 'week');
+  if (view === 'today') renderToday();
+  if (view === 'week') renderWeek();
+}
+
+// ============================================================
+// TODAY
+// ============================================================
+function renderToday() {
+  const today = new Date();
+  const todayStr = dateStr(today);
+  const dayNum = today.getDate();
+  const dayName = today.toLocaleDateString('en-GB', { weekday: 'long' });
+  const monthName = today.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+  const campDay = Math.floor((today - CAMP_START) / 86400000) + 1;
+  const inCamp = campDay >= 1 && campDay <= 16;
+
+  document.getElementById('today-title').textContent = dayName;
+  document.getElementById('today-subtitle').textContent = `${dayNum} ${monthName}${inCamp ? ` · Camp day ${campDay} of 16` : ''}`;
+
+  // progress
+  const pct = inCamp ? Math.min(100, Math.round((campDay / 16) * 100)) : (campDay > 16 ? 100 : 0);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = inCamp ? `Day ${campDay} of 16` : (campDay > 16 ? 'Camp completed' : 'Camp starts 23 Mar');
+
+  const todaySessions = getSessionsForDate(todayStr);
+  const swimSessions = todaySessions.filter(s => s.type === 'swim');
+  const totalVol = swimSessions.reduce((a, s) => a + (s.volume || 0), 0);
+
+  // summary
+  const sumBanner = document.getElementById('today-summary');
+  if (todaySessions.length === 0) {
+    sumBanner.innerHTML = '<span style="color:var(--text-3);font-size:13px;">No sessions planned for today.</span>';
+  } else {
+    sumBanner.innerHTML = `
+      <div class="summary-item"><div class="summary-val">${todaySessions.length}</div><div class="summary-lbl">Sessions</div></div>
+      <div class="summary-item"><div class="summary-val">${swimSessions.length}</div><div class="summary-lbl">Swim</div></div>
+      ${totalVol > 0 ? `<div class="summary-item"><div class="summary-val">${(totalVol/1000).toFixed(1)}k</div><div class="summary-lbl">Metres</div></div>` : ''}
+      <div class="summary-item"><div class="summary-val">${todaySessions.filter(s=>s.completed).length}</div><div class="summary-lbl">Done</div></div>
+    `;
+  }
+
+  const container = document.getElementById('today-sessions');
+  if (todaySessions.length === 0) {
+    container.innerHTML = '<div style="padding:32px 0;text-align:center;color:var(--text-3);">No sessions today. Add one with the button above.</div>';
+    return;
+  }
+  container.innerHTML = todaySessions.map(s => renderSessionCard(s, true)).join('');
+}
+
+function renderSessionCard(s, showNotes = false) {
+  const done = s.completed;
+  const note = s.notes || '';
+  const chips = [];
+  if (s.volume) chips.push(`<span class="meta-chip">${(s.volume/1000).toFixed(1)}km</span>`);
+  if (s.intensity) chips.push(`<span class="meta-chip intensity">${s.intensity}</span>`);
+  if (s.focus) chips.push(`<span class="meta-chip">${s.focus}</span>`);
+
+  return `<div class="session-card ${s.type}" id="card-${s.id}">
+    <div class="type-bar"></div>
+    <div style="padding-left:12px">
+      <div class="session-header">
+        <span class="session-type-badge">${s.type === 'swim' ? 'Swim' : s.type === 'land' ? 'Land' : 'Rest'}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${done ? '<span class="completed-stamp">✓ Done</span>' : ''}
+          <span class="session-time">${s.time || ''}</span>
+        </div>
+      </div>
+      <div class="session-title">${s.title}</div>
+      ${chips.length ? `<div class="session-meta">${chips.join('')}</div>` : ''}
+      ${s.focus ? `<div class="session-focus">${s.focus}</div>` : ''}
+      ${showNotes ? `
+        <div class="session-actions">
+          <div style="flex:1">
+            <textarea class="notes-field" placeholder="Post-session notes..." onchange="saveNote('${s.id}', this.value)">${note}</textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:8px;">
+            <button class="btn ${done ? '' : 'btn-primary'}" onclick="toggleDone('${s.id}')">${done ? 'Undo' : 'Done'}</button>
+            <button class="btn" onclick="openEditModal('${s.id}')">Edit</button>
+          </div>
+        </div>
+      ` : `
+        <div style="margin-top:8px;">
+          <button class="btn" style="font-size:11px;padding:4px 10px;" onclick="openEditModal('${s.id}')">Edit</button>
+        </div>
+      `}
+    </div>
+  </div>`;
+}
+
+async function toggleDone(id) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  const newVal = !s.completed;
+  const { error } = await sb.from('sessions').update({ completed: newVal }).eq('id', id);
+  if (error) { showToast('Error saving'); console.error(error); return; }
+  s.completed = newVal;
+  renderToday();
+  showToast(newVal ? 'Session marked complete ✓' : 'Marked incomplete');
+}
+
+async function saveNote(id, val) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  const { error } = await sb.from('sessions').update({ notes: val }).eq('id', id);
+  if (error) { showToast('Error saving note'); console.error(error); return; }
+  s.notes = val;
+}
+
+// ============================================================
+// WEEK VIEW
+// ============================================================
+function renderWeek() {
+  const weekStart = addDays(CAMP_START, (currentWeek - 1) * 7);
+  const weekEnd   = addDays(weekStart, 6);
+
+  const startLabel = weekStart.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+  const endLabel   = weekEnd.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+  document.getElementById('week-title').textContent = `Week ${currentWeek}`;
+  document.getElementById('week-subtitle').textContent = `${startLabel} – ${endLabel}`;
+
+  const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const todayStr = dateStr(new Date());
+  const grid = document.getElementById('week-grid');
+  let totalVol = 0, totalSessions = 0;
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const day = addDays(weekStart, i);
+    const ds = dateStr(day);
+    const daySessions = getSessionsForDate(ds);
+    const isToday = ds === todayStr;
+    totalVol += daySessions.filter(s=>s.type==='swim').reduce((a,s)=>a+(s.volume||0), 0);
+    totalSessions += daySessions.length;
+
+    const pillsHtml = daySessions.map(s => `
+      <div class="week-session-pill ${s.type}" onclick="openEditModal('${s.id}')">
+        <div class="pill-title">${s.title.replace(/Morning swim — |Evening swim — /,'').slice(0,22)}</div>
+        ${s.volume ? `<div class="pill-meta">${(s.volume/1000).toFixed(1)}km · ${s.intensity}</div>` : ''}
+        ${s.time ? `<div class="pill-meta">${s.time}</div>` : ''}
+      </div>
+    `).join('');
+
+    html += `<div class="day-col ${isToday ? 'today-col' : ''}">
+      <div class="day-col-header">
+        <span class="day-col-name">${dayNames[i]}</span>
+        <span class="day-col-num">${day.getDate()}</span>
+      </div>
+      <div class="day-sessions">
+        ${pillsHtml || '<div class="empty-day">—</div>'}
+        <button class="add-session-btn" onclick="openAddModal('${ds}','week')">+</button>
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+
+  // week summary
+  const swimSess = sessions.filter(s => {
+    const d = new Date(s.date);
+    return d >= weekStart && d <= weekEnd && s.type === 'swim';
+  });
+  const doneSess = sessions.filter(s => {
+    const d = new Date(s.date);
+    return d >= weekStart && d <= weekEnd && s.completed;
+  });
+  document.getElementById('week-summary').innerHTML = `
+    <div class="summary-item"><div class="summary-val">${totalSessions}</div><div class="summary-lbl">Sessions</div></div>
+    <div class="summary-item"><div class="summary-val">${(totalVol/1000).toFixed(1)}k</div><div class="summary-lbl">Swim metres</div></div>
+    <div class="summary-item"><div class="summary-val">${swimSess.length}</div><div class="summary-lbl">Swim sessions</div></div>
+    <div class="summary-item"><div class="summary-val">${doneSess.length}</div><div class="summary-lbl">Completed</div></div>
+  `;
+}
+
+function changeWeek(dir) {
+  currentWeek = Math.max(1, Math.min(3, currentWeek + dir));
+  renderWeek();
+  renderWeekLinks();
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openAddModal(dateOverride, context) {
+  editingId = null;
+  addModalContext = context;
+  document.getElementById('modal-title').textContent = 'Add Session';
+  document.getElementById('modal-delete-btn').style.display = 'none';
+  document.getElementById('f-date').value = dateOverride || dateStr(new Date());
+  document.getElementById('f-time').value = '';
+  document.getElementById('f-type').value = 'swim';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-volume').value = '';
+  document.getElementById('f-intensity').value = '';
+  document.getElementById('f-focus').value = '';
+  document.getElementById('modal-backdrop').classList.remove('hidden');
+}
+
+function openEditModal(id) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  editingId = id;
+  document.getElementById('modal-title').textContent = 'Edit Session';
+  document.getElementById('modal-delete-btn').style.display = 'inline-flex';
+  document.getElementById('f-date').value = s.date;
+  document.getElementById('f-time').value = s.time || '';
+  document.getElementById('f-type').value = s.type;
+  document.getElementById('f-title').value = s.title;
+  document.getElementById('f-volume').value = s.volume || '';
+  document.getElementById('f-intensity').value = s.intensity || '';
+  document.getElementById('f-focus').value = s.focus || '';
+  document.getElementById('modal-backdrop').classList.remove('hidden');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modal-backdrop')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modal-backdrop').classList.add('hidden');
+  editingId = null;
+}
+
+async function saveSession() {
+  const s = {
+    date: document.getElementById('f-date').value,
+    time: document.getElementById('f-time').value,
+    type: document.getElementById('f-type').value,
+    title: document.getElementById('f-title').value || 'Untitled session',
+    volume: parseInt(document.getElementById('f-volume').value) || 0,
+    intensity: document.getElementById('f-intensity').value,
+    focus: document.getElementById('f-focus').value,
+  };
+  if (!s.date) { showToast('Please set a date'); return; }
+
+  if (editingId) {
+    const { error } = await sb.from('sessions').update(s).eq('id', editingId);
+    if (error) { showToast('Error updating session'); console.error(error); return; }
+    const idx = sessions.findIndex(x => x.id === editingId);
+    if (idx >= 0) sessions[idx] = { ...sessions[idx], ...s };
+    showToast('Session updated');
+  } else {
+    s.id = 'user_' + Date.now();
+    s.completed = false;
+    const { data, error } = await sb.from('sessions').insert(s).select().single();
+    if (error) { showToast('Error adding session'); console.error(error); return; }
+    sessions.push(data || s);
+    showToast('Session added');
+  }
+  closeModalDirect();
+  if (currentView === 'today') renderToday();
+  if (currentView === 'week') renderWeek();
+}
+
+async function deleteSession() {
+  if (!editingId) return;
+  const { error } = await sb.from('sessions').delete().eq('id', editingId);
+  if (error) { showToast('Error deleting session'); console.error(error); return; }
+  sessions = sessions.filter(x => x.id !== editingId);
+  closeModalDirect();
+  showToast('Session deleted');
+  if (currentView === 'today') renderToday();
+  if (currentView === 'week') renderWeek();
+}
+
+// ============================================================
+// SIDEBAR WEEK LINKS
+// ============================================================
+function renderWeekLinks() {
+  const container = document.getElementById('week-links');
+  const labels = [
+    { label: 'Week 1', dates: '23–29 Mar', wk: 1 },
+    { label: 'Week 2', dates: '30 Mar–5 Apr', wk: 2 },
+    { label: 'Week 3', dates: '6–7 Apr', wk: 3 },
+  ];
+  container.innerHTML = labels.map(l => `
+    <div class="week-nav-item ${currentWeek === l.wk && currentView === 'week' ? 'active' : ''}" onclick="jumpToWeek(${l.wk})">
+      <span>${l.label}</span>
+      <span class="week-badge">${l.dates}</span>
+    </div>
+  `).join('');
+}
+
+function jumpToWeek(wk) {
+  currentWeek = wk;
+  showView('week');
+  renderWeekLinks();
+}
+
+// ============================================================
+// GLOBAL STATS
+// ============================================================
+function renderSidebarStats() {
+  const swimSessions = sessions.filter(s => s.type === 'swim');
+  const totalM = swimSessions.reduce((a, s) => a + (s.volume || 0), 0);
+  document.getElementById('sidebar-total-km').textContent = (totalM / 1000).toFixed(0) + 'k';
+  document.getElementById('sidebar-sessions').textContent = sessions.length;
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function signIn() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) errEl.textContent = error.message;
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+sb.auth.onAuthStateChange(async (event, session) => {
+  currentUser = session ? session.user : null;
+  const appShell = document.getElementById('app-shell');
+  const loginScreen = document.getElementById('login-screen');
+
+  if (currentUser) {
+    loginScreen.classList.add('hidden');
+    appShell.classList.remove('hidden');
+    await loadData();
+    renderWeekLinks();
+    renderSidebarStats();
+    renderToday();
+    // auto-jump to correct week if in camp
+    const today = new Date();
+    const campDay = Math.floor((today - CAMP_START) / 86400000) + 1;
+    if (campDay >= 1 && campDay <= 7) currentWeek = 1;
+    else if (campDay >= 8 && campDay <= 14) currentWeek = 2;
+    else if (campDay >= 15) currentWeek = 3;
+  } else {
+    appShell.classList.add('hidden');
+    loginScreen.classList.remove('hidden');
+  }
+});
+</script>
+</body>
+</html>
