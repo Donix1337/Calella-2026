@@ -140,14 +140,14 @@ private fun WidgetContent(state: PodsState, phoneName: String) {
     ) {
         when {
             size.width >= 240.dp && size.height >= 220.dp -> ListLayout(state, all)
-            size.width >= 240.dp -> RowLayout(all)
+            size.width >= 240.dp -> RowLayout(all, ringSize = if (size.height >= 150.dp) 62.dp else 50.dp)
             else -> GridLayout(all, showLabels = size.height >= 150.dp)
         }
     }
 }
 
 @Composable
-private fun RowLayout(items: List<WidgetItem>) {
+private fun RowLayout(items: List<WidgetItem>, ringSize: Dp) {
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
         horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
@@ -155,7 +155,7 @@ private fun RowLayout(items: List<WidgetItem>) {
     ) {
         items.forEach { item ->
             Box(modifier = GlanceModifier.defaultWeight(), contentAlignment = Alignment.Center) {
-                RingWithLabel(item, ringSize = 54.dp, showLabel = true)
+                RingWithLabel(item, ringSize = ringSize, showLabel = true)
             }
         }
     }
@@ -199,14 +199,14 @@ private fun ListLayout(state: PodsState, items: List<WidgetItem>) {
             style = TextStyle(color = Secondary, fontSize = 12.sp),
             maxLines = 1,
         )
-        Spacer(GlanceModifier.height(8.dp))
+        Spacer(GlanceModifier.height(6.dp))
         items.forEach { item ->
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp),
+                modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
                 verticalAlignment = Alignment.Vertical.CenterVertically,
             ) {
-                Ring(item, 34.dp)
-                Spacer(GlanceModifier.width(10.dp))
+                Ring(item, 36.dp)
+                Spacer(GlanceModifier.width(12.dp))
                 Text(
                     text = item.label,
                     style = TextStyle(color = Primary, fontSize = 14.sp),

@@ -2,6 +2,16 @@
 
 A native Android companion app for AirPods with a clean, iOS-style interface.
 
+<p>
+  <img src="docs/home_light.png" width="250" alt="Home screen, light">
+  <img src="docs/home_dark.png" width="250" alt="Home screen, dark">
+  <img src="docs/popup_dark.png" width="250" alt="Connection pop-up">
+</p>
+<p>
+  <img src="docs/widget_wide_light.png" width="380" alt="Widget, wide">
+  <img src="docs/widget_large_dark.png" width="380" alt="Widget, large">
+</p>
+
 ## Install
 
 1. On your phone, open
@@ -51,6 +61,10 @@ when Android reports the AirPods connected and stops shortly after they disconne
   connection without root, so Pods doesn't offer them.
 
 ## Building
+
+Screenshots of every screen and widget size are rendered on CI by the Robolectric
+screenshot tests (`./gradlew testDebugUnitTest --tests '*ScreenshotTest*' -PrecordScreens`)
+and published to the `pods-screenshots` release.
 
 ```
 cd airpods-app
