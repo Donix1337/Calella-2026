@@ -65,15 +65,24 @@ If your AirPods show as connected but no battery appears:
    broader scan modes (hardware filter → Apple filter → software filter) and remembers
    the one that works.
 
-Until the broadcast comes through, Pods shows the single battery level Android itself
-gets from the AirPods, when the phone reports one.
+Diagnostics also shows the direct connection's state and whether Android reports a
+battery level. **Copy Diagnostics** puts a full report on the clipboard.
 
-### Limitations
+### Where battery comes from, and limitations
 
-- Battery is reported in 10% steps; that's all AirPods share with non-Apple devices.
-- Noise control (ANC / Transparency) and other settings that live on the AirPods
-  themselves need Apple's private accessory protocol. Android doesn't allow that
-  connection without root, so Pods doesn't offer them.
+Pods uses whichever of these your AirPods and phone allow:
+
+1. **Direct connection** (Apple's accessory protocol over L2CAP): exact 1% battery for
+   each bud and the case, ear detection and noise control. Many Android builds refuse
+   this connection because of a Bluetooth stack bug that Google fixed for Android 17
+   (already shipped on Pixels with Android 16 QPR3 and on ColorOS/OxygenOS 16). Pods
+   retries it on every connection, so it starts working once your phone gets the fix.
+2. **Bluetooth broadcasts**: battery in 10% steps and in-ear state. Older AirPods firmware
+   broadcasts this in the clear; newer firmware encrypts it for non-Apple phones.
+3. **Android's headset battery**: one overall level, when the phone exposes it.
+
+On a Galaxy S22 Ultra (One UI, Android 16) with current AirPods Pro firmware, none of
+the three is available without root, and the app says so instead of guessing.
 
 ## Building
 

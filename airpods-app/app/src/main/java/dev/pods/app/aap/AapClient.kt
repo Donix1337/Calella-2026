@@ -103,26 +103,33 @@ object AapClient {
             return fail(address, "Bad address")
         }
 
-        val sock = try {
-            createSocket(adapter, device)
-        } catch (e: Throwable) {
-            return fail(address, "Can't create socket: ${e.javaClass.simpleName}")
+        var sock: BluetoothSocket? = null
+        var lastError = "unknown"
+        for (secure in listOf(true, false)) {
+            val candidate = try {
+                createSocket(adapter, device, secure)
+            } catch (e: Throwable) {
+                lastError = "Can't create socket: ${e.javaClass.simpleName}"
+                continue
+            }
+            socket = candidate
+            // BluetoothSocket.connect() blocks without a timeout; closing the socket unblocks it.
+            val watchdog = PodsApp.scope.launch {
+                delay(8_000)
+                if (_status.value.state == State.CONNECTING) closeSocket()
+            }
+            try {
+                candidate.connect()
+                sock = candidate
+            } catch (e: IOException) {
+                lastError = "Connection refused (${e.message ?: "IOException"})"
+                closeSocket()
+            } finally {
+                watchdog.cancel()
+            }
+            if (sock != null) break
         }
-        socket = sock
-
-        // BluetoothSocket.connect() blocks without a timeout; closing the socket unblocks it.
-        val watchdog = PodsApp.scope.launch {
-            delay(8_000)
-            if (_status.value.state == State.CONNECTING) closeSocket()
-        }
-        try {
-            sock.connect()
-        } catch (e: IOException) {
-            watchdog.cancel()
-            closeSocket()
-            return fail(address, "Connection refused (${e.message ?: "IOException"})")
-        }
-        watchdog.cancel()
+        if (sock == null) return fail(address, lastError)
 
         try {
             val output = sock.outputStream
@@ -205,14 +212,15 @@ object AapClient {
      * BluetoothSocket has no public L2CAP-over-BR/EDR constructor, and its hidden
      * one changed shape across Android versions; try each known signature.
      */
-    private fun createSocket(adapter: BluetoothAdapter, device: BluetoothDevice): BluetoothSocket {
+    private fun createSocket(adapter: BluetoothAdapter, device: BluetoothDevice, secure: Boolean): BluetoothSocket {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
+        val s = secure
         val specs: List<Array<Any>> = listOf(
-            arrayOf(adapter, device, TYPE_L2CAP, true, true, PSM, UUID),
-            arrayOf(device, TYPE_L2CAP, true, true, PSM, UUID),
-            arrayOf(device, TYPE_L2CAP, 1, true, true, PSM, UUID),
-            arrayOf(TYPE_L2CAP, 1, true, true, device, PSM, UUID),
-            arrayOf(TYPE_L2CAP, true, true, device, PSM, UUID),
+            arrayOf(adapter, device, TYPE_L2CAP, s, s, PSM, UUID),
+            arrayOf(device, TYPE_L2CAP, s, s, PSM, UUID),
+            arrayOf(device, TYPE_L2CAP, 1, s, s, PSM, UUID),
+            arrayOf(TYPE_L2CAP, 1, s, s, device, PSM, UUID),
+            arrayOf(TYPE_L2CAP, s, s, device, PSM, UUID),
         )
         var last: Throwable? = null
         for (args in specs) {

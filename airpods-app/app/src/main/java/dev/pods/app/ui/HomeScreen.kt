@@ -144,7 +144,22 @@ fun HomeScreen(
             }
             item(key = "setup") {
                 SetupCards(permissions, actions)
-                if (state.isConnected && state.snapshot == null && !direct.isConnected) {
+                val allSourcesBlocked = state.isConnected && !fresh &&
+                    direct.state == AapClient.State.FAILED &&
+                    state.headsetBattery == null &&
+                    diagnostics.batterySeen == 0 && diagnostics.podsSeen > 50
+                if (allSourcesBlocked) {
+                    SetupCard(
+                        icon = Icons.Rounded.Info,
+                        tint = colors.gray,
+                        title = "Battery isn't available on this phone yet",
+                        body = "Your AirPods encrypt their status for non-Apple phones, and this phone's " +
+                            "Bluetooth doesn't yet allow the direct connection iPhones use. Google has fixed " +
+                            "that in Android 17. Once your phone gets it, Pods connects by itself.",
+                        action = "Try Again",
+                        onAction = actions::retryDirectConnection,
+                    )
+                } else if (state.isConnected && state.snapshot == null && !direct.isConnected) {
                     WaitingCard(permissions, actions)
                 }
             }
