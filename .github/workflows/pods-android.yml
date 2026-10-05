@@ -48,12 +48,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Update in place so the download link never disappears mid-build.
           tag="pods-latest"
-          gh release delete "$tag" --yes --cleanup-tag || true
-          gh release create "$tag" Pods.apk \
-            --target "$GITHUB_SHA" \
-            --title "Pods for Android (build ${GITHUB_RUN_NUMBER})" \
-            --notes "Download Pods.apk on your phone and open it to install. Built from ${GITHUB_SHA::7}."
+          title="Pods for Android (build ${GITHUB_RUN_NUMBER})"
+          notes="Download Pods.apk on your phone and open it to install. Built from ${GITHUB_SHA::7}."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" Pods.apk --clobber
+            gh release edit "$tag" --title "$title" --notes "$notes"
+          else
+            gh release create "$tag" Pods.apk --target "$GITHUB_SHA" --title "$title" --notes "$notes"
+          fi
 
       - name: Render UI screenshots
         id: screens
@@ -67,9 +71,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="pods-screenshots"
-          gh release delete "$tag" --yes --cleanup-tag || true
-          gh release create "$tag" app/build/screens/*.png \
-            --target "$GITHUB_SHA" \
-            --prerelease \
-            --title "Pods UI screenshots" \
-            --notes "Rendered by the screenshot tests on ${GITHUB_SHA::7}."
+          notes="Rendered by the screenshot tests on ${GITHUB_SHA::7}."
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" app/build/screens/*.png --clobber
+            gh release edit "$tag" --notes "$notes"
+          else
+            gh release create "$tag" app/build/screens/*.png --target "$GITHUB_SHA" --prerelease \
+              --title "Pods UI screenshots" --notes "$notes"
+          fi
