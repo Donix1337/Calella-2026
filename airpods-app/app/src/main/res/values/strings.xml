@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Pods</string>
+    <string name="widget_name">AirPods Battery</string>
+    <string name="widget_description">Battery rings for your AirPods, case and phone</string>
+</resources>
