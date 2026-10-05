@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.github.takahirom.roborazzi.captureRoboImage
+import dev.pods.app.aap.AapClient
 import dev.pods.app.bluetooth.PermissionSnapshot
 import dev.pods.app.data.DeviceInfo
 import dev.pods.app.data.PhoneBattery
@@ -80,6 +81,19 @@ class ScreenshotTest {
     @Test
     fun homeDark() = shoot("home_dark", dark = true) {
         HomeScreen(connected, Signal(-58, now), SettingsValues(onboarded = true), permissions, actions, liveClock = false)
+    }
+
+    @Test
+    fun homeDirectConnection() = shoot("home_direct", dark = false) {
+        HomeScreen(
+            connected.copy(snapshot = snapshot.copy(left = 87, right = 92, case = 64, exact = true, anonymousBuds = true)),
+            Signal(-58, now),
+            SettingsValues(onboarded = true),
+            permissions,
+            actions,
+            liveClock = false,
+            direct = AapClient.Status(AapClient.State.CONNECTED, "Connected", noiseMode = 2, packets = 42),
+        )
     }
 
     @Test

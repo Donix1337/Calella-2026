@@ -25,6 +25,10 @@ data class PodsSnapshot(
     val singleCharging: Boolean,
     /** True when the case level is remembered from earlier, not live. */
     val caseFromMemory: Boolean = false,
+    /** Exact 1% levels from the direct (AAP) connection rather than 10% BLE steps. */
+    val exact: Boolean = false,
+    /** Ear state known only as primary/secondary bud, not left/right. */
+    val anonymousBuds: Boolean = false,
     val updatedAt: Long,
 ) {
     val model: PodModel? get() = PodModel.fromId(modelId)
@@ -36,6 +40,18 @@ data class PodsSnapshot(
         copy(updatedAt = 0) == other.copy(updatedAt = 0)
 
     companion object {
+        /** Placeholder Apple audio product ID when only the direct connection reported. */
+        const val UNKNOWN_AUDIO_MODEL = 0x2000
+
+        fun empty(now: Long) = PodsSnapshot(
+            modelId = UNKNOWN_AUDIO_MODEL,
+            left = null, right = null, case = null,
+            leftCharging = false, rightCharging = false, caseCharging = false,
+            leftInEar = false, rightInEar = false, leftInCase = false, rightInCase = false,
+            single = null, singleCharging = false,
+            updatedAt = now,
+        )
+
         fun from(msg: ProximityMessage, now: Long) = PodsSnapshot(
             modelId = msg.modelId,
             left = msg.left,

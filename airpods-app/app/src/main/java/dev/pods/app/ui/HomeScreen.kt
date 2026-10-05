@@ -63,7 +63,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.pods.app.BuildConfig
 import dev.pods.app.bluetooth.PermissionSnapshot
+import dev.pods.app.aap.AapClient
 import dev.pods.app.bluetooth.BtConnections
+import dev.pods.app.ui.components.Segment
+import dev.pods.app.ui.components.SegmentedControl
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Headphones
 import dev.pods.app.bluetooth.ScanDiagnostics
 import dev.pods.app.data.PodsState
 import dev.pods.app.data.SettingsValues
@@ -89,6 +96,8 @@ interface HomeActions {
     fun openBluetoothSettings()
     fun addWidget()
     fun openLocationSettings() {}
+    fun retryDirectConnection() {}
+    fun setNoiseMode(mode: Int) {}
 }
 
 @Composable
@@ -100,6 +109,7 @@ fun HomeScreen(
     actions: HomeActions,
     liveClock: Boolean = true,
     diagnostics: ScanDiagnostics = ScanDiagnostics(),
+    direct: AapClient.Status = AapClient.Status(),
 ) {
     val colors = Pods.colors
     val listState = rememberLazyListState()
@@ -113,7 +123,7 @@ fun HomeScreen(
     val live = state.isConnected || nearby
     // AirPods only send readable battery while the case is open or now and then in use,
     // so between those moments we show the last reading and say how old it is.
-    val fresh = signal.lastSeen > 0 && now - signal.lastSeen < 45_000
+    val fresh = direct.isConnected || (signal.lastSeen > 0 && now - signal.lastSeen < 45_000)
     val statusEncrypted = state.isConnected && !fresh && diagnostics.podsSeen - diagnostics.batterySeen > 100
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
@@ -134,8 +144,13 @@ fun HomeScreen(
             }
             item(key = "setup") {
                 SetupCards(permissions, actions)
-                if (state.isConnected && state.snapshot == null) {
+                if (state.isConnected && state.snapshot == null && !direct.isConnected) {
                     WaitingCard(permissions, actions)
+                }
+            }
+            if (direct.isConnected && state.snapshot?.isHeadphones != true) {
+                item(key = "noise") {
+                    NoiseControlSection(direct.noiseMode, actions)
                 }
             }
             item(key = "ear") {
@@ -190,6 +205,18 @@ fun HomeScreen(
                         onCheckedChange = { on -> actions.updateSettings { it.copy(lowBatteryAlert = on) } },
                     )
                     ToggleRow(
+                        title = "Direct Connection",
+                        subtitle = when {
+                            direct.isConnected -> "Connected · exact battery and noise control"
+                            direct.state == AapClient.State.FAILED -> "Not supported on this phone yet"
+                            else -> "Exact battery, ear detection and noise control"
+                        },
+                        icon = Icons.Rounded.Link,
+                        iconTint = colors.teal,
+                        checked = settings.directConnection,
+                        onCheckedChange = { on -> actions.updateSettings { it.copy(directConnection = on) } },
+                    )
+                    ToggleRow(
                         title = "Background Updates",
                         icon = Icons.Rounded.Sync,
                         iconTint = colors.gray,
@@ -218,11 +245,15 @@ fun HomeScreen(
                 AboutSection(state, signal, now, actions)
             }
             item(key = "diagnostics") {
-                DiagnosticsSection(diagnostics, state, permissions, now)
+                DiagnosticsSection(diagnostics, state, permissions, now, direct, actions)
             }
             item(key = "footer") {
                 Text(
-                    text = "Pods ${BuildConfig.VERSION_NAME}\nAirPods report battery in 10% steps.",
+                    text = "Pods ${BuildConfig.VERSION_NAME}\n" + if (state.snapshot?.exact == true) {
+                        "Exact battery from the direct connection."
+                    } else {
+                        "AirPods broadcast battery in 10% steps."
+                    },
                     style = PodsType.footnote,
                     color = colors.tertiaryLabel,
                     textAlign = TextAlign.Center,
@@ -375,6 +406,40 @@ private fun SetupCard(
     }
 }
 
+/** Noise control modes in display order, with their AAP values. */
+private val NOISE_MODES = listOf(
+    1 to Segment("Off", Icons.Rounded.Block),
+    3 to Segment("Transparency", Icons.Rounded.Hearing),
+    4 to Segment("Adaptive", Icons.Rounded.AutoAwesome),
+    2 to Segment("Noise Cancel", Icons.Rounded.Headphones),
+)
+
+@Composable
+private fun NoiseControlSection(mode: Int?, actions: HomeActions) {
+    val colors = Pods.colors
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp)) {
+        Text(
+            "NOISE CONTROL",
+            style = PodsType.sectionHeader,
+            color = colors.secondaryLabel,
+            modifier = Modifier.padding(start = 16.dp, bottom = 7.dp),
+        )
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .clip(SquircleShape(12.dp))
+                .background(colors.card)
+                .padding(8.dp)
+        ) {
+            SegmentedControl(
+                segments = NOISE_MODES.map { it.second },
+                selectedIndex = NOISE_MODES.indexOfFirst { it.first == mode }.takeIf { it >= 0 },
+                onSelect = { index -> actions.setNoiseMode(NOISE_MODES[index].first) },
+            )
+        }
+    }
+}
+
 @Composable
 private fun WaitingCard(permissions: PermissionSnapshot, actions: HomeActions) {
     val colors = Pods.colors
@@ -407,6 +472,8 @@ private fun DiagnosticsSection(
     state: PodsState,
     permissions: PermissionSnapshot,
     now: Long,
+    direct: AapClient.Status,
+    actions: HomeActions,
 ) {
     val colors = Pods.colors
     val clipboard = LocalClipboardManager.current
@@ -451,6 +518,25 @@ private fun DiagnosticsSection(
             SettingsRow(title = "Battery packets", value = diagnostics.batterySeen.toString())
             SettingsRow(title = "Last battery packet", value = lastSignal)
             SettingsRow(title = "Battery from Android", value = systemBattery)
+            SettingsRow(
+                title = "Direct connection",
+                value = when (direct.state) {
+                    AapClient.State.IDLE -> "Off"
+                    AapClient.State.CONNECTING -> "Connecting…"
+                    AapClient.State.CONNECTED -> "Connected · ${direct.packets} packets"
+                    AapClient.State.FAILED -> "Failed"
+                },
+            )
+            if (direct.state == AapClient.State.FAILED && direct.detail.isNotEmpty()) {
+                SettingsRow(title = direct.detail, titleColor = colors.secondaryLabel)
+            }
+            if (!direct.isConnected && state.isConnected) {
+                SettingsRow(
+                    title = "Try Direct Connection",
+                    titleColor = colors.blue,
+                    onClick = actions::retryDirectConnection,
+                )
+            }
             SettingsRow(title = "Location", value = if (permissions.locationOn) "On" else "Off")
             SettingsRow(
                 title = "Extended advertising",
@@ -471,7 +557,7 @@ private fun DiagnosticsSection(
                 titleColor = colors.blue,
                 divider = false,
                 onClick = {
-                    clipboard.setText(AnnotatedString(diagnosticsReport(diagnostics, state, permissions, now)))
+                    clipboard.setText(AnnotatedString(diagnosticsReport(diagnostics, state, permissions, now, direct)))
                     Toast.makeText(context, "Diagnostics copied", Toast.LENGTH_SHORT).show()
                 },
             )
@@ -484,6 +570,7 @@ private fun diagnosticsReport(
     state: PodsState,
     permissions: PermissionSnapshot,
     now: Long,
+    direct: AapClient.Status,
 ): String = buildString {
     appendLine("Pods ${BuildConfig.VERSION_NAME} diagnostics")
     appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, Android ${android.os.Build.VERSION.RELEASE}")
@@ -498,6 +585,8 @@ private fun diagnosticsReport(
     state.snapshot?.let {
         appendLine("Snapshot: model 0x%04X L ${it.left} R ${it.right} C ${it.case}, %ds old".format(it.modelId, (now - it.updatedAt) / 1000))
     }
+    appendLine("Direct connection: ${direct.state} ${direct.detail}, ${direct.packets} packets")
+    direct.lastPacket?.let { appendLine("  last: $it") }
     appendLine("Packets:")
     d.packetKinds.forEach {
         appendLine("${it.prefix} x${it.count} ${it.lastRssi}dBm ${(now - it.lastAt) / 1000}s ago")

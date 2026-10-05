@@ -3,6 +3,10 @@ package dev.pods.app.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.BatteryManager
+import dev.pods.app.aap.AapBattery
+import dev.pods.app.aap.AapClient
+import dev.pods.app.aap.AapEar
+import dev.pods.app.aap.PodPlacement
 import dev.pods.app.ble.CandidateTracker
 import dev.pods.app.ble.ProximityParser
 import dev.pods.app.widget.WidgetUpdater
@@ -45,6 +49,8 @@ object PodsRepository {
 
     fun onAdvertisement(context: Context, address: String, rssi: Int, data: ByteArray, now: Long) {
         val message = ProximityParser.parse(data) ?: return
+        // The direct connection is exact and authoritative while it's up.
+        if (AapClient.status.value.isConnected) return
         val connected = _state.value.isConnected
         // Be pickier when not connected so a stranger's AirPods across the room don't show up.
         val minRssi = if (connected) -90 else -75
@@ -94,6 +100,52 @@ object PodsRepository {
         return seen > 0 && now - seen < FRESH_MS
     }
 
+    /** True when the shown numbers are current: a live direct connection or a recent broadcast. */
+    fun isLive(now: Long = System.currentTimeMillis()): Boolean =
+        AapClient.status.value.isConnected || isBleFresh(now)
+
+    fun onAapBattery(context: Context, battery: AapBattery) {
+        val now = System.currentTimeMillis()
+        val base = _state.value.snapshot ?: PodsSnapshot.empty(now)
+        val snapshot = base.copy(
+            left = battery.left?.level,
+            right = battery.right?.level,
+            leftCharging = battery.left?.charging == true,
+            rightCharging = battery.right?.charging == true,
+            // The case only reports while a bud is inside; keep its last level otherwise.
+            case = battery.case?.level ?: base.case,
+            caseCharging = battery.case?.charging == true,
+            caseFromMemory = battery.case == null && base.case != null,
+            single = battery.single?.level ?: base.single,
+            singleCharging = battery.single?.charging == true,
+            exact = true,
+            updatedAt = now,
+        )
+        publishDirect(context, snapshot, now)
+    }
+
+    fun onAapEar(context: Context, ear: AapEar) {
+        val now = System.currentTimeMillis()
+        val base = _state.value.snapshot ?: PodsSnapshot.empty(now)
+        val snapshot = base.copy(
+            leftInEar = ear.primary == PodPlacement.IN_EAR,
+            rightInEar = ear.secondary == PodPlacement.IN_EAR,
+            leftInCase = ear.primary == PodPlacement.IN_CASE,
+            rightInCase = ear.secondary == PodPlacement.IN_CASE,
+            anonymousBuds = true,
+            updatedAt = now,
+        )
+        publishDirect(context, snapshot, now)
+    }
+
+    private fun publishDirect(context: Context, snapshot: PodsSnapshot, now: Long) {
+        _signal.value = _signal.value.copy(lastSeen = now)
+        if (_state.value.snapshot?.sameReading(snapshot) == true) return
+        _state.update { it.copy(snapshot = snapshot) }
+        save()
+        WidgetUpdater.request(context)
+    }
+
     const val FRESH_MS = 60_000L
 
     fun setHeadsetBattery(context: Context, level: Int?) {
@@ -130,7 +182,10 @@ object PodsRepository {
         val raw = prefs.getString(KEY_STATE, null) ?: return PodsState()
         return try {
             val json = JSONObject(raw)
+            // Builds before 1.0.10 could store garbage decoded from encrypted packets;
+            // real Apple audio product IDs are all 0x20xx.
             val snapshot = json.optJSONObject("snapshot")?.let { snapshotFromJson(it) }
+                ?.takeIf { (it.modelId shr 8) == 0x20 }
             val last = json.optJSONObject("lastDevice")?.let {
                 DeviceInfo(it.getString("name"), it.getString("address"))
             }

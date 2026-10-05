@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import dev.pods.app.aap.AapClient
 import dev.pods.app.bluetooth.BtConnections
 import dev.pods.app.bluetooth.Permissions
 import dev.pods.app.bluetooth.PodsScanner
@@ -156,6 +157,7 @@ class PodsService : Service() {
 
         val connected = state.connected
         if (connected == null) {
+            AapClient.disconnect()
             lastConnectedAddress = null
             popupPendingSince = 0L
             scheduleStop()
@@ -164,6 +166,7 @@ class PodsService : Service() {
             stopJob = null
             if (connected.address != lastConnectedAddress) {
                 lastConnectedAddress = connected.address
+                if (PodsSettings.current.directConnection) AapClient.connect(this, connected.address)
                 earDetector.reset()
                 lowBatteryWarned.clear()
                 popupPendingSince = now
@@ -230,6 +233,7 @@ class PodsService : Service() {
 
     override fun onDestroy() {
         scope.cancel()
+        AapClient.disconnect()
         PodsScanner.release(SCAN_CLIENT)
         try {
             unregisterReceiver(batteryReceiver)

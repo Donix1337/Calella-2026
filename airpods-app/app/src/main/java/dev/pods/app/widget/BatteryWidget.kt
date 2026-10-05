@@ -110,7 +110,7 @@ private fun items(state: PodsState, phoneName: String): List<WidgetItem> {
             phone,
         )
     }
-    if (s != null && !s.isHeadphones && state.isConnected && state.headsetBattery != null && !PodsRepository.isBleFresh()) {
+    if (s != null && !s.isHeadphones && state.isConnected && state.headsetBattery != null && !PodsRepository.isLive()) {
         return listOf(
             WidgetItem(state.shortModelName, R.drawable.ic_stat_pods, state.headsetBattery, false, true),
             WidgetItem("Case", R.drawable.ic_glyph_case, s.case, false, false),

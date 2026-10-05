@@ -17,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.pods.app.aap.AapClient
 import dev.pods.app.bluetooth.BtConnections
 import dev.pods.app.bluetooth.PermissionSnapshot
 import dev.pods.app.bluetooth.Permissions
@@ -58,10 +59,11 @@ class MainActivity : ComponentActivity(), HomeActions {
                 val signal by PodsRepository.signal.collectAsStateWithLifecycle()
                 val settings by PodsSettings.values.collectAsStateWithLifecycle()
                 val diagnostics by PodsScanner.diagnostics.collectAsStateWithLifecycle()
+                val direct by AapClient.status.collectAsStateWithLifecycle()
                 val perms = permissions ?: PermissionSnapshot.read(this)
                 Crossfade(targetState = perms.bluetooth, label = "root") { ready ->
                     if (ready) {
-                        HomeScreen(state, signal, settings, perms, this@MainActivity, diagnostics = diagnostics)
+                        HomeScreen(state, signal, settings, perms, this@MainActivity, diagnostics = diagnostics, direct = direct)
                     } else {
                         OnboardingScreen(deniedBefore = deniedBefore, onContinue = this@MainActivity::onContinue)
                     }
@@ -92,6 +94,11 @@ class MainActivity : ComponentActivity(), HomeActions {
         PodsScanner.request(this, SCAN_CLIENT, ScanPower.HIGH)
         BtConnections.refresh(this) { device ->
             if (device != null && PodsSettings.current.backgroundUpdates) PodsService.start(this)
+            if (device != null && PodsSettings.current.directConnection &&
+                AapClient.status.value.state == AapClient.State.IDLE
+            ) {
+                AapClient.connect(this, device.address)
+            }
         }
     }
 
@@ -111,6 +118,10 @@ class MainActivity : ComponentActivity(), HomeActions {
         val before = PodsSettings.current
         PodsSettings.update(transform)
         val after = PodsSettings.current
+        if (before.directConnection != after.directConnection) {
+            val address = PodsRepository.state.value.connected?.address
+            if (after.directConnection && address != null) AapClient.connect(this, address) else AapClient.disconnect()
+        }
         if (before.backgroundUpdates != after.backgroundUpdates) {
             if (after.backgroundUpdates) {
                 if (PodsRepository.state.value.isConnected) PodsService.start(this)
@@ -130,6 +141,15 @@ class MainActivity : ComponentActivity(), HomeActions {
             Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
         )
         if (!asked) openAppSettings()
+    }
+
+    override fun retryDirectConnection() {
+        val address = PodsRepository.state.value.connected?.address ?: return
+        AapClient.connect(this, address)
+    }
+
+    override fun setNoiseMode(mode: Int) {
+        AapClient.setNoiseMode(mode)
     }
 
     override fun openLocationSettings() {

@@ -12,6 +12,7 @@ data class SettingsValues(
     val popup: Boolean = true,
     val lowBatteryAlert: Boolean = true,
     val backgroundUpdates: Boolean = true,
+    val directConnection: Boolean = true,
     val onboarded: Boolean = false,
 )
 
@@ -36,6 +37,7 @@ object PodsSettings {
                 popup = prefs.getBoolean("popup", d.popup),
                 lowBatteryAlert = prefs.getBoolean("lowBatteryAlert", d.lowBatteryAlert),
                 backgroundUpdates = prefs.getBoolean("backgroundUpdates", d.backgroundUpdates),
+                directConnection = prefs.getBoolean("directConnection", d.directConnection),
                 onboarded = prefs.getBoolean("onboarded", d.onboarded),
             )
             initialized = true
@@ -52,6 +54,7 @@ object PodsSettings {
             .putBoolean("popup", v.popup)
             .putBoolean("lowBatteryAlert", v.lowBatteryAlert)
             .putBoolean("backgroundUpdates", v.backgroundUpdates)
+            .putBoolean("directConnection", v.directConnection)
             .putBoolean("onboarded", v.onboarded)
             .apply()
     }

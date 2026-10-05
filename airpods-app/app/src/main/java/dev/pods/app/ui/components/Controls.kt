@@ -285,3 +285,75 @@ fun TextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
 
 /** Horizontal arrangement helper used by a few cards. */
 val SpacedEvenly = Arrangement.SpaceEvenly
+
+data class Segment(val label: String, val icon: ImageVector)
+
+/**
+ * iOS-style segmented control with a sliding selection pill. Used for noise
+ * control, where each segment shows an icon above a short label.
+ */
+@Composable
+fun SegmentedControl(
+    segments: List<Segment>,
+    selectedIndex: Int?,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = Pods.colors
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        modifier
+            .fillMaxWidth()
+            .clip(SquircleShape(14.dp))
+            .background(colors.fill)
+            .padding(3.dp)
+    ) {
+        val segmentWidth = maxWidth / segments.size
+        val target = (selectedIndex ?: 0).coerceIn(0, segments.lastIndex)
+        val offset by androidx.compose.animation.core.animateDpAsState(
+            targetValue = segmentWidth * target,
+            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+            label = "segment",
+        )
+        if (selectedIndex != null) {
+            Box(
+                Modifier
+                    .offset(x = offset)
+                    .size(width = segmentWidth, height = 64.dp)
+                    .shadow(2.dp, SquircleShape(11.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                    .background(if (colors.isDark) colors.cardPressed else Color.White, SquircleShape(11.dp))
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            segments.forEachIndexed { index, segment ->
+                val selected = index == selectedIndex
+                Column(
+                    modifier = Modifier
+                        .width(segmentWidth)
+                        .height(64.dp)
+                        .clip(SquircleShape(11.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { onSelect(index) },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Icon(
+                        segment.icon,
+                        contentDescription = null,
+                        tint = if (selected) colors.blue else colors.secondaryLabel,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        segment.label,
+                        style = PodsType.caption.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                        color = if (selected) colors.label else colors.secondaryLabel,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}

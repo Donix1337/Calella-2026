@@ -161,7 +161,7 @@ fun PodsComponentsRow(
     }
 
     fun wearDetail(inEar: Boolean, inCase: Boolean): String? = when {
-        snapshot == null || !live || !showWear -> null
+        snapshot == null || !live || !showWear || snapshot.anonymousBuds -> null
         inEar -> "In ear"
         inCase -> "In case"
         else -> null
@@ -223,6 +223,11 @@ fun wearSummary(snapshot: PodsSnapshot?, connected: Boolean): String = when {
     snapshot == null -> "Open the case near your phone"
     snapshot.isHeadphones -> if (connected) "Connected" else "Not connected"
     !connected -> "Not connected"
+    snapshot.anonymousBuds -> when (snapshot.inEarCount) {
+        2 -> "Both AirPods in ear"
+        1 -> "One AirPod in ear"
+        else -> if (snapshot.leftInCase && snapshot.rightInCase) "Both AirPods in case" else "Not in ear"
+    }
     snapshot.leftInEar && snapshot.rightInEar -> "Both AirPods in ear"
     snapshot.leftInEar -> "Left AirPod in ear"
     snapshot.rightInEar -> "Right AirPod in ear"

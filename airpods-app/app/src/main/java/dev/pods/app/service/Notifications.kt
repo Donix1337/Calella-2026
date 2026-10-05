@@ -36,7 +36,7 @@ object Notifications {
     fun statusText(state: PodsState): String {
         val s = state.snapshot ?: return state.headsetBattery?.let { "Battery $it%" } ?: "Connected"
         val system = state.headsetBattery
-        if (system != null && !PodsRepository.isBleFresh() && !s.isHeadphones) {
+        if (system != null && !PodsRepository.isLive() && !s.isHeadphones) {
             val case = s.case?.let { "   ·   Case $it%" } ?: ""
             return "AirPods $system%$case"
         }
