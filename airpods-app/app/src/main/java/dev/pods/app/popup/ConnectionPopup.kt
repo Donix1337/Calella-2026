@@ -25,7 +25,6 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,8 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.pods.app.data.PodsRepository
+import dev.pods.app.data.PodsState
 import dev.pods.app.ui.components.PodsComponentsRow
 import dev.pods.app.ui.components.PrimaryButton
 import dev.pods.app.ui.theme.Pods
@@ -45,12 +43,12 @@ import dev.pods.app.ui.theme.SquircleShape
 
 @Composable
 fun ConnectionPopup(
+    state: PodsState,
     visibleState: MutableTransitionState<Boolean>,
     onDismiss: () -> Unit,
     onOpen: () -> Unit,
 ) {
     val colors = Pods.colors
-    val state by PodsRepository.state.collectAsStateWithLifecycle()
     val shape = SquircleShape(34.dp)
 
     AnimatedVisibility(

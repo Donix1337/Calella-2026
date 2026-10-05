@@ -56,6 +56,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -87,4 +91,15 @@ dependencies {
     implementation("androidx.glance:glance-appwidget:1.1.1")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi:1.32.2")
+    testImplementation("io.github.takahirom.roborazzi:roborazzi-compose:1.32.2")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// Screenshot tests only write images when asked: ./gradlew testDebugUnitTest -PrecordScreens
+tasks.withType<Test>().configureEach {
+    systemProperty("roborazzi.test.record", project.hasProperty("recordScreens").toString())
+    systemProperty("robolectric.pixelCopyRenderMode", "hardware")
 }

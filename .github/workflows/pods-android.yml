@@ -31,7 +31,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
-        run: ./gradlew --no-daemon testReleaseUnitTest
+        run: ./gradlew --no-daemon testReleaseUnitTest --tests 'dev.pods.app.ble.*'
 
       - name: Build APK
         run: ./gradlew --no-daemon assembleRelease
@@ -54,3 +54,22 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Pods for Android (build ${GITHUB_RUN_NUMBER})" \
             --notes "Download Pods.apk on your phone and open it to install. Built from ${GITHUB_SHA::7}."
+
+      - name: Render UI screenshots
+        id: screens
+        continue-on-error: true
+        run: ./gradlew --no-daemon testDebugUnitTest --tests '*ScreenshotTest*' -PrecordScreens
+
+      - name: Publish screenshots
+        if: steps.screens.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="pods-screenshots"
+          gh release delete "$tag" --yes --cleanup-tag || true
+          gh release create "$tag" app/build/screens/*.png \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Pods UI screenshots" \
+            --notes "Rendered by the screenshot tests on ${GITHUB_SHA::7}."

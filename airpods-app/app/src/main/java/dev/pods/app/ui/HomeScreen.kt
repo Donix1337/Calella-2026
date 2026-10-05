@@ -86,6 +86,7 @@ fun HomeScreen(
     settings: SettingsValues,
     permissions: PermissionSnapshot,
     actions: HomeActions,
+    liveClock: Boolean = true,
 ) {
     val colors = Pods.colors
     val listState = rememberLazyListState()
@@ -93,7 +94,7 @@ fun HomeScreen(
     val showBar by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 90 }
     }
-    val now by produceNow()
+    val now by produceNow(liveClock, signal.lastSeen)
 
     val nearby = !state.isConnected && signal.lastSeen > 0 && now - signal.lastSeen < 30_000
     val live = state.isConnected || nearby
@@ -210,12 +211,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun produceNow() = androidx.compose.runtime.produceState(System.currentTimeMillis()) {
-    while (true) {
-        delay(5_000)
-        value = System.currentTimeMillis()
+private fun produceNow(live: Boolean, fallback: Long) =
+    androidx.compose.runtime.produceState(if (live) System.currentTimeMillis() else fallback, live) {
+        while (live) {
+            delay(5_000)
+            value = System.currentTimeMillis()
+        }
     }
-}
 
 @Composable
 private fun Header(state: PodsState, signal: Signal, nearby: Boolean, now: Long) {

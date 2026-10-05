@@ -10,7 +10,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -20,6 +22,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.pods.app.bluetooth.Permissions
+import dev.pods.app.data.PodsRepository
 import dev.pods.app.ui.MainActivity
 import dev.pods.app.ui.theme.PodsTheme
 
@@ -46,7 +49,9 @@ class PopupController(private val context: Context) {
             setViewTreeSavedStateRegistryOwner(lifecycleOwner)
             setContent {
                 PodsTheme {
+                    val podsState by PodsRepository.state.collectAsStateWithLifecycle()
                     ConnectionPopup(
+                        state = podsState,
                         visibleState = state,
                         onDismiss = { dismiss() },
                         onOpen = {
