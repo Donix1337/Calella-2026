@@ -89,6 +89,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
 
     implementation("androidx.glance:glance-appwidget:1.1.1")
+    // Reads the battery level Android already gets from the AirPods (a hidden platform API).
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.14.1")

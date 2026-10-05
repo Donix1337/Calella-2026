@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import dev.pods.app.R
+import dev.pods.app.data.PodsRepository
 import dev.pods.app.data.PodsState
 import dev.pods.app.ui.MainActivity
 
@@ -34,6 +35,11 @@ object Notifications {
 
     fun statusText(state: PodsState): String {
         val s = state.snapshot ?: return state.headsetBattery?.let { "Battery $it%" } ?: "Connected"
+        val system = state.headsetBattery
+        if (system != null && !PodsRepository.isBleFresh() && !s.isHeadphones) {
+            val case = s.case?.let { "   ·   Case $it%" } ?: ""
+            return "AirPods $system%$case"
+        }
         fun part(label: String, level: Int?, charging: Boolean) =
             level?.let { "$label $it%" + if (charging) " ⚡" else "" }
         val parts = if (s.isHeadphones) {

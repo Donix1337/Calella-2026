@@ -88,6 +88,14 @@ object PodsRepository {
         _state.value = state
     }
 
+    /** Readable battery packets arrive only now and then on newer firmware. */
+    fun isBleFresh(now: Long = System.currentTimeMillis()): Boolean {
+        val seen = _signal.value.lastSeen
+        return seen > 0 && now - seen < FRESH_MS
+    }
+
+    const val FRESH_MS = 60_000L
+
     fun setHeadsetBattery(context: Context, level: Int?) {
         val value = level?.takeIf { it in 0..100 }
         if (_state.value.headsetBattery == value) return

@@ -8,6 +8,7 @@ import android.content.Context
 import android.os.ParcelUuid
 import dev.pods.app.data.DeviceInfo
 import dev.pods.app.data.PodsRepository
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 /** Finds AirPods (or Beats) that are connected over Bluetooth audio. */
 object BtConnections {
@@ -39,11 +40,38 @@ object BtConnections {
     const val ACTION_BATTERY_LEVEL_CHANGED = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"
     const val EXTRA_BATTERY_LEVEL = "android.bluetooth.device.extra.BATTERY_LEVEL"
 
-    /** Battery the headset reports to Android (hidden API, so best effort). */
+    /** Why the last system battery read failed, for diagnostics. */
+    @Volatile
+    var systemBatteryStatus: String = "Not read yet"
+        private set
+
+    /**
+     * Battery the AirPods report to Android over the headset profile (one value,
+     * usually the lower bud). The getter is a hidden platform API, so this is
+     * best effort.
+     */
     fun systemBatteryLevel(device: BluetoothDevice): Int? = try {
-        (BluetoothDevice::class.java.getMethod("getBatteryLevel").invoke(device) as? Int)?.takeIf { it in 0..100 }
+        val level = HiddenApiBypass.invoke(BluetoothDevice::class.java, device, "getBatteryLevel") as? Int
+        systemBatteryStatus = if (level != null && level in 0..100) "OK" else "Not reported (${level ?: "null"})"
+        level?.takeIf { it in 0..100 }
     } catch (e: Throwable) {
+        systemBatteryStatus = e.javaClass.simpleName
         null
+    }
+
+    /** Refreshes [PodsRepository]'s system battery level for the connected AirPods. */
+    @SuppressLint("MissingPermission")
+    fun pollSystemBattery(context: Context) {
+        val app = context.applicationContext
+        val address = PodsRepository.state.value.connected?.address ?: return
+        if (!Permissions.hasBluetooth(app)) return
+        val adapter = app.getSystemService(BluetoothManager::class.java)?.adapter ?: return
+        val device = try {
+            adapter.getRemoteDevice(address)
+        } catch (e: IllegalArgumentException) {
+            return
+        }
+        systemBatteryLevel(device)?.let { PodsRepository.setHeadsetBattery(app, it) }
     }
 
     fun info(device: BluetoothDevice): DeviceInfo =

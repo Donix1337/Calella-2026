@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity(), HomeActions {
         super.onResume()
         refreshPermissions()
         if (PodsRepository.refreshPhoneBattery(this)) WidgetUpdater.request(this)
+        BtConnections.pollSystemBattery(this)
     }
 
     override fun onStop() {

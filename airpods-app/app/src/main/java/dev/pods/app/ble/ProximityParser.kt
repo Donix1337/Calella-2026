@@ -70,6 +70,9 @@ object ProximityParser {
         if (data.size < start + 2 + PROXIMITY_PAIRING_LENGTH) return null
         fun at(offset: Int) = data[start + offset].u()
 
+        // Plaintext status broadcasts start with prefix 0x01; other prefixes use another layout.
+        if (at(2) != 0x01) return null
+
         // Apple audio product IDs are all 0x20xx.
         if (at(4) != 0x20) return null
 

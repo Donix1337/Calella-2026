@@ -44,6 +44,17 @@ data class ScanDiagnostics(
     val lastPacketAt: Long = 0L,
     val offloadedFiltering: Boolean? = null,
     val offloadedBatching: Boolean? = null,
+    val extendedAdvertising: Boolean? = null,
+    /** Every kind of AirPods message seen, keyed by its first three bytes. */
+    val packetKinds: List<PacketKind> = emptyList(),
+)
+
+data class PacketKind(
+    val prefix: String,
+    val count: Int,
+    val lastHex: String,
+    val lastRssi: Int,
+    val lastAt: Long,
 )
 
 /**
@@ -77,6 +88,7 @@ object PodsScanner {
     private var lastOtherPacket: String? = null
     private var lastRssi: Int? = null
     private var lastPacketAt = 0L
+    private val kinds = LinkedHashMap<String, PacketKind>()
 
     @Synchronized
     fun request(context: Context, client: String, power: ScanPower) {
@@ -145,6 +157,12 @@ object PodsScanner {
             .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
             .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
             .setReportDelay(0)
+            .apply {
+                if (adapter.isLeExtendedAdvertisingSupported) {
+                    setLegacy(false)
+                    setPhy(ScanSettings.PHY_LE_ALL_SUPPORTED)
+                }
+            }
             .build()
 
         val filters = when (mode) {
@@ -162,6 +180,7 @@ object PodsScanner {
             _diagnostics.value = _diagnostics.value.copy(
                 offloadedFiltering = adapter.isOffloadedFilteringSupported,
                 offloadedBatching = adapter.isOffloadedScanBatchingSupported,
+                extendedAdvertising = adapter.isLeExtendedAdvertisingSupported,
             )
             publish(status = "Scanning" + if (power == ScanPower.HIGH) " (fast)" else "", force = true)
             scheduleEscalation()
@@ -228,6 +247,14 @@ object PodsScanner {
         if (podsSinceStart == 1) rememberWorkingStrategy(context)
         val readable = ProximityParser.parse(data) != null
         val hex = data.joinToString(" ") { "%02X".format(it) }
+        val prefix = hex.take(8)
+        kinds[prefix] = PacketKind(
+            prefix = prefix,
+            count = (kinds[prefix]?.count ?: 0) + 1,
+            lastHex = hex,
+            lastRssi = result.rssi,
+            lastAt = System.currentTimeMillis(),
+        )
         if (readable) {
             batterySeen++
             lastPacket = hex
@@ -260,6 +287,7 @@ object PodsScanner {
             batterySeen = batterySeen,
             lastPacket = lastPacket,
             lastOtherPacket = lastOtherPacket,
+            packetKinds = kinds.values.sortedByDescending { it.lastAt }.take(8),
             lastRssi = lastRssi,
             lastPacketAt = lastPacketAt,
         )

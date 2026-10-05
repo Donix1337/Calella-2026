@@ -54,11 +54,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import android.widget.Toast
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.pods.app.BuildConfig
 import dev.pods.app.bluetooth.PermissionSnapshot
+import dev.pods.app.bluetooth.BtConnections
 import dev.pods.app.bluetooth.ScanDiagnostics
 import dev.pods.app.data.PodsState
 import dev.pods.app.data.SettingsValues
@@ -109,6 +114,7 @@ fun HomeScreen(
     // AirPods only send readable battery while the case is open or now and then in use,
     // so between those moments we show the last reading and say how old it is.
     val fresh = signal.lastSeen > 0 && now - signal.lastSeen < 45_000
+    val statusEncrypted = state.isConnected && !fresh && diagnostics.podsSeen - diagnostics.batterySeen > 100
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         LazyColumn(
@@ -136,7 +142,11 @@ fun HomeScreen(
                 Section(header = "Ear Detection", modifier = Modifier.padding(top = 28.dp)) {
                     ToggleRow(
                         title = "Automatic Ear Detection",
-                        subtitle = "Pause when you take an AirPod out",
+                        subtitle = if (statusEncrypted) {
+                            "Your AirPods encrypt in-ear status on Android, so this can't work right now"
+                        } else {
+                            "Pause when you take an AirPod out"
+                        },
                         icon = Icons.Rounded.Hearing,
                         iconTint = colors.blue,
                         checked = settings.earDetection,
@@ -295,6 +305,8 @@ private fun Hero(state: PodsState, live: Boolean, fresh: Boolean, lastSeen: Long
         val summary = when {
             state.snapshot == null && state.isConnected && state.headsetBattery != null ->
                 "Battery ${state.headsetBattery}% · reported by Android"
+            state.isConnected && !fresh && state.headsetBattery != null ->
+                "Now ${state.headsetBattery}% · reported by Android"
             state.snapshot != null && state.isConnected && !fresh && lastSeen > 0 ->
                 "Updated " + DateUtils.getRelativeTimeSpanString(
                     lastSeen, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
@@ -397,21 +409,27 @@ private fun DiagnosticsSection(
     now: Long,
 ) {
     val colors = Pods.colors
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val lastSignal = when {
-        diagnostics.lastPacketAt == 0L -> "None yet"
-        else -> {
-            val ago = ((now - diagnostics.lastPacketAt) / 1000).coerceAtLeast(0)
-            "${diagnostics.lastRssi ?: "?"} dBm · ${if (ago < 5) "now" else "${ago}s ago"}"
+    fun ago(at: Long): String {
+        val seconds = ((now - at) / 1000).coerceAtLeast(0)
+        return when {
+            seconds < 5 -> "now"
+            seconds < 120 -> "${seconds}s ago"
+            else -> "${seconds / 60}m ago"
         }
     }
+    val lastSignal = if (diagnostics.lastPacketAt == 0L) {
+        "None yet"
+    } else {
+        "${diagnostics.lastRssi ?: "?"} dBm · ${ago(diagnostics.lastPacketAt)}"
+    }
+    val systemBattery = state.headsetBattery?.let { "$it%" } ?: BtConnections.systemBatteryStatus
     Section(
         header = "Diagnostics",
         footer = if (expanded) {
-            listOfNotNull(
-                diagnostics.lastPacket?.let { "Last battery packet:\n$it" },
-                diagnostics.lastOtherPacket?.let { "Last encrypted packet:\n$it" },
-            ).joinToString("\n\n").ifEmpty { "No AirPods packets received yet. Keep them out of the case near your phone." }
+            "Messages starting 07 19 01 carry readable battery. Other AirPods messages are encrypted."
         } else {
             null
         },
@@ -432,18 +450,58 @@ private fun DiagnosticsSection(
             SettingsRow(title = "AirPods signals", value = diagnostics.podsSeen.toString())
             SettingsRow(title = "Battery packets", value = diagnostics.batterySeen.toString())
             SettingsRow(title = "Last battery packet", value = lastSignal)
-            SettingsRow(title = "Battery from Android", value = state.headsetBattery?.let { "$it%" } ?: "—")
+            SettingsRow(title = "Battery from Android", value = systemBattery)
             SettingsRow(title = "Location", value = if (permissions.locationOn) "On" else "Off")
             SettingsRow(
-                title = "Hardware filtering",
-                value = when (diagnostics.offloadedFiltering) {
+                title = "Extended advertising",
+                value = when (diagnostics.extendedAdvertising) {
                     true -> "Supported"
                     false -> "Not supported"
                     null -> "—"
                 },
+            )
+            diagnostics.packetKinds.forEach { kind ->
+                SettingsRow(
+                    title = kind.prefix,
+                    value = "×${kind.count} · ${kind.lastRssi} dBm · ${ago(kind.lastAt)}",
+                )
+            }
+            SettingsRow(
+                title = "Copy Diagnostics",
+                titleColor = colors.blue,
                 divider = false,
+                onClick = {
+                    clipboard.setText(AnnotatedString(diagnosticsReport(diagnostics, state, permissions, now)))
+                    Toast.makeText(context, "Diagnostics copied", Toast.LENGTH_SHORT).show()
+                },
             )
         }
+    }
+}
+
+private fun diagnosticsReport(
+    d: ScanDiagnostics,
+    state: PodsState,
+    permissions: PermissionSnapshot,
+    now: Long,
+): String = buildString {
+    appendLine("Pods ${BuildConfig.VERSION_NAME} diagnostics")
+    appendLine("Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}, Android ${android.os.Build.VERSION.RELEASE}")
+    appendLine("Connected: ${state.connected?.name ?: "no"}")
+    appendLine("Scanner: ${d.status}, mode ${d.strategy.label}")
+    appendLine("Apple ${d.appleSeen}, AirPods ${d.podsSeen}, battery packets ${d.batterySeen}")
+    appendLine("System battery: ${state.headsetBattery?.let { "$it%" } ?: BtConnections.systemBatteryStatus}")
+    appendLine(
+        "Location ${permissions.locationOn}, offload filter ${d.offloadedFiltering}, " +
+            "batching ${d.offloadedBatching}, extended adv ${d.extendedAdvertising}"
+    )
+    state.snapshot?.let {
+        appendLine("Snapshot: model 0x%04X L ${it.left} R ${it.right} C ${it.case}, %ds old".format(it.modelId, (now - it.updatedAt) / 1000))
+    }
+    appendLine("Packets:")
+    d.packetKinds.forEach {
+        appendLine("${it.prefix} x${it.count} ${it.lastRssi}dBm ${(now - it.lastAt) / 1000}s ago")
+        appendLine("  ${it.lastHex}")
     }
 }
 

@@ -127,6 +127,12 @@ class PodsService : Service() {
             PodsRepository.state.collect { onState(it) }
         }
         scope.launch {
+            while (isActive) {
+                BtConnections.pollSystemBattery(this@PodsService)
+                delay(30_000)
+            }
+        }
+        scope.launch {
             // Lets ear detection settle even when advertisements are sparse.
             while (isActive) {
                 delay(400)

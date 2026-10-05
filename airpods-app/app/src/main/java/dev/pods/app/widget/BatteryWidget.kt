@@ -44,6 +44,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import dev.pods.app.R
+import dev.pods.app.bluetooth.BtConnections
 import dev.pods.app.data.PodsRepository
 import dev.pods.app.data.PodsSettings
 import dev.pods.app.data.PodsState
@@ -77,6 +78,7 @@ class BatteryWidget : GlanceAppWidget() {
         PodsSettings.init(context)
         PodsRepository.init(context)
         PodsRepository.refreshPhoneBattery(context)
+        BtConnections.pollSystemBattery(context)
         val phoneName = phoneName(context)
         provideContent {
             val state by PodsRepository.state.collectAsState()
@@ -105,6 +107,13 @@ private fun items(state: PodsState, phoneName: String): List<WidgetItem> {
     if (s == null && state.isConnected && state.headsetBattery != null) {
         return listOf(
             WidgetItem(state.shortModelName, R.drawable.ic_stat_pods, state.headsetBattery, false, true),
+            phone,
+        )
+    }
+    if (s != null && !s.isHeadphones && state.isConnected && state.headsetBattery != null && !PodsRepository.isBleFresh()) {
+        return listOf(
+            WidgetItem(state.shortModelName, R.drawable.ic_stat_pods, state.headsetBattery, false, true),
+            WidgetItem("Case", R.drawable.ic_glyph_case, s.case, false, false),
             phone,
         )
     }
