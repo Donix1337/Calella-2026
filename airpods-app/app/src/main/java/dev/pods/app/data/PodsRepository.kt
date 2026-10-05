@@ -77,6 +77,11 @@ object PodsRepository {
         WidgetUpdater.request(context, immediate = true)
     }
 
+    /** Lets screenshot tests render the UI and widget with sample data. */
+    internal fun replaceStateForPreview(state: PodsState) {
+        _state.value = state
+    }
+
     fun refreshPhoneBattery(context: Context): Boolean {
         val phone = readPhoneBattery(context)
         if (phone == _state.value.phone) return false

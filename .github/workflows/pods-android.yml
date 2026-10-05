@@ -62,15 +62,16 @@ jobs:
       - name: Render UI screenshots
         id: screens
         continue-on-error: true
-        run: ./gradlew --no-daemon testDebugUnitTest --tests '*ScreenshotTest*' -PrecordScreens
+        run: ./gradlew --no-daemon testDebugUnitTest --tests '*ScreenshotTest*' -PrecordScreens --continue
 
       - name: Publish screenshots
-        if: steps.screens.outcome == 'success'
+        if: always()
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="pods-screenshots"
+          ls app/build/screens/*.png >/dev/null 2>&1 || exit 0
           notes="Rendered by the screenshot tests on ${GITHUB_SHA::7}."
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" app/build/screens/*.png --clobber

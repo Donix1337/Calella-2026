@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
@@ -60,7 +61,7 @@ fun ConnectionPopup(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(24.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
+                    .shadow(24.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black, spotColor = Color.Black)
                     .clip(shape)
                     .background(if (colors.isDark) colors.elevated else colors.card)
                     .clickable(

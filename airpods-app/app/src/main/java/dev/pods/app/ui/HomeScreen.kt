@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -32,7 +33,7 @@ import androidx.compose.material.icons.rounded.Bluetooth
 import androidx.compose.material.icons.rounded.BluetoothDisabled
 import androidx.compose.material.icons.rounded.Hearing
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.PictureInPicture
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Sync
@@ -295,7 +296,7 @@ private fun SetupCards(permissions: PermissionSnapshot, actions: HomeActions) {
         }
         AnimatedVisibility(visible = !permissions.batteryUnrestricted, enter = fadeIn(), exit = fadeOut()) {
             SetupCard(
-                icon = Icons.Rounded.NotificationsActive,
+                icon = Icons.Rounded.BatteryChargingFull,
                 tint = colors.orange,
                 title = "Allow background activity",
                 body = "Lets Pods start by itself when your AirPods connect, so the widget stays up to date.",
@@ -332,7 +333,7 @@ private fun SetupCard(
             Spacer(Modifier.height(3.dp))
             Text(body, style = PodsType.subhead, color = colors.secondaryLabel)
             Spacer(Modifier.height(6.dp))
-            TextButton(action, onAction, modifier = Modifier.padding(start = 0.dp))
+            TextButton(action, onAction, modifier = Modifier.offset(x = (-8).dp))
         }
     }
 }
