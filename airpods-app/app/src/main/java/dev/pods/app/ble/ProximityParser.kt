@@ -39,14 +39,24 @@ object ProximityParser {
      * look for the proximity pairing one rather than assuming it comes first.
      */
     fun parse(manufacturerData: ByteArray?): ProximityMessage? {
-        val data = manufacturerData ?: return null
+        val start = findProximityMessage(manufacturerData) ?: return null
+        return parseMessage(manufacturerData!!, start)
+    }
+
+    /**
+     * True for any proximity pairing message, including the short encrypted
+     * variant (length 0x11) newer AirPods firmware sends while in use. Those
+     * prove the AirPods are nearby but carry no readable battery data.
+     */
+    fun isFromAirPods(manufacturerData: ByteArray?): Boolean = findProximityMessage(manufacturerData) != null
+
+    private fun findProximityMessage(data: ByteArray?): Int? {
+        if (data == null) return null
         var i = 0
         while (i + 1 < data.size) {
             val type = data[i].u()
             val length = data[i + 1].u()
-            if (type == TYPE_PROXIMITY_PAIRING) {
-                return parseMessage(data, i)
-            }
+            if (type == TYPE_PROXIMITY_PAIRING) return i
             if (length == 0) return null
             i += 2 + length
         }
@@ -54,9 +64,14 @@ object ProximityParser {
     }
 
     private fun parseMessage(data: ByteArray, start: Int): ProximityMessage? {
-        // We read up to offset 7 (case battery and charge flags).
-        if (data.size < start + 8) return null
+        // Only the full 25-byte status message carries battery in the clear;
+        // the shorter variants are encrypted and decode to random numbers.
+        if (data[start + 1].u() != PROXIMITY_PAIRING_LENGTH) return null
+        if (data.size < start + 2 + PROXIMITY_PAIRING_LENGTH) return null
         fun at(offset: Int) = data[start + offset].u()
+
+        // Apple audio product IDs are all 0x20xx.
+        if (at(4) != 0x20) return null
 
         val modelId = (at(4) shl 8) or at(3)
         val status = at(5)

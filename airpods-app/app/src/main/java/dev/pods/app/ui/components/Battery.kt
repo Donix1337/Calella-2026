@@ -134,7 +134,13 @@ private fun ComponentColumn(
  * the card iPhone shows when you open the case.
  */
 @Composable
-fun PodsComponentsRow(snapshot: PodsSnapshot?, live: Boolean, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun PodsComponentsRow(
+    snapshot: PodsSnapshot?,
+    live: Boolean,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+    showWear: Boolean = true,
+) {
     val colors = Pods.colors
     val kind = snapshot?.kind ?: PodKind.PRO
     val artHeight = if (compact) 84.dp else 100.dp
@@ -155,7 +161,7 @@ fun PodsComponentsRow(snapshot: PodsSnapshot?, live: Boolean, modifier: Modifier
     }
 
     fun wearDetail(inEar: Boolean, inCase: Boolean): String? = when {
-        snapshot == null || !live -> null
+        snapshot == null || !live || !showWear -> null
         inEar -> "In ear"
         inCase -> "In case"
         else -> null

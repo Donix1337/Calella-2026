@@ -78,6 +78,19 @@ class ProximityParserTest {
     }
 
     @Test
+    fun ignoresEncryptedShortProximityMessage() {
+        // Captured from AirPods Pro in use: type 0x07 but length 0x11, payload encrypted.
+        val packet = hex("07 11 06 3F 52 09 C0 94 82 C7 2B DD 5D F6 F5 CE CD B7 66")
+        assertNull(ProximityParser.parse(packet))
+        assertTrue(ProximityParser.isFromAirPods(packet))
+    }
+
+    @Test
+    fun rejectsNonAudioProductIds() {
+        assertNull(ProximityParser.parse(hex("07 19 01 0E 52 2B 97 8F 01 $payloadTail")))
+    }
+
+    @Test
     fun rejectsOtherMessagesAndGarbage() {
         assertNull(ProximityParser.parse(null))
         assertNull(ProximityParser.parse(byteArrayOf()))

@@ -34,8 +34,12 @@ data class ScanDiagnostics(
     val status: String = "Not started",
     val strategy: ScanStrategy = ScanStrategy.PROXIMITY_FILTER,
     val appleSeen: Int = 0,
+    /** Any proximity pairing message, readable or encrypted. */
     val podsSeen: Int = 0,
+    /** Readable battery messages. */
+    val batterySeen: Int = 0,
     val lastPacket: String? = null,
+    val lastOtherPacket: String? = null,
     val lastRssi: Int? = null,
     val lastPacketAt: Long = 0L,
     val offloadedFiltering: Boolean? = null,
@@ -51,7 +55,7 @@ data class ScanDiagnostics(
 object PodsScanner {
     private const val TAG = "PodsScanner"
     private const val PREFS = "pods_scanner"
-    private const val KEY_STRATEGY = "strategy"
+    private const val KEY_STRATEGY = "strategy_v2"
     private const val ESCALATE_AFTER_MS = 8_000L
 
     private val requests = HashMap<String, ScanPower>()
@@ -68,7 +72,9 @@ object PodsScanner {
     private var lastPublish = 0L
     private var appleSeen = 0
     private var podsSeen = 0
+    private var batterySeen = 0
     private var lastPacket: String? = null
+    private var lastOtherPacket: String? = null
     private var lastRssi: Int? = null
     private var lastPacketAt = 0L
 
@@ -216,17 +222,22 @@ object PodsScanner {
     private fun handle(context: Context, result: ScanResult) {
         val data = result.scanRecord?.getManufacturerSpecificData(ProximityParser.APPLE_COMPANY_ID) ?: return
         appleSeen++
-        val isPods = ProximityParser.parse(data) != null
-        if (isPods) {
-            podsSeen++
-            podsSinceStart++
-            lastPacket = data.joinToString(" ") { "%02X".format(it) }
+        if (!ProximityParser.isFromAirPods(data)) return publish()
+        podsSeen++
+        podsSinceStart++
+        if (podsSinceStart == 1) rememberWorkingStrategy(context)
+        val readable = ProximityParser.parse(data) != null
+        val hex = data.joinToString(" ") { "%02X".format(it) }
+        if (readable) {
+            batterySeen++
+            lastPacket = hex
             lastRssi = result.rssi
             lastPacketAt = System.currentTimeMillis()
-            if (podsSinceStart == 1) rememberWorkingStrategy(context)
+        } else {
+            lastOtherPacket = hex
         }
         publish()
-        if (isPods) {
+        if (readable) {
             PodsRepository.onAdvertisement(context, result.device.address, result.rssi, data, System.currentTimeMillis())
         }
     }
@@ -246,24 +257,22 @@ object PodsScanner {
             strategy = strategy ?: current.strategy,
             appleSeen = appleSeen,
             podsSeen = podsSeen,
+            batterySeen = batterySeen,
             lastPacket = lastPacket,
+            lastOtherPacket = lastOtherPacket,
             lastRssi = lastRssi,
             lastPacketAt = lastPacketAt,
         )
     }
 
-    /** Apple manufacturer data starting with a proximity pairing message (type 0x07). */
-    private fun proximityFilter(): ScanFilter {
-        val data = ByteArray(27)
-        val mask = ByteArray(27)
-        data[0] = ProximityParser.TYPE_PROXIMITY_PAIRING.toByte()
-        data[1] = ProximityParser.PROXIMITY_PAIRING_LENGTH.toByte()
-        mask[0] = 0xFF.toByte()
-        mask[1] = 0xFF.toByte()
-        return ScanFilter.Builder()
-            .setManufacturerData(ProximityParser.APPLE_COMPANY_ID, data, mask)
-            .build()
-    }
+    /** Apple manufacturer data starting with a proximity pairing message of any length. */
+    private fun proximityFilter(): ScanFilter = ScanFilter.Builder()
+        .setManufacturerData(
+            ProximityParser.APPLE_COMPANY_ID,
+            byteArrayOf(ProximityParser.TYPE_PROXIMITY_PAIRING.toByte()),
+            byteArrayOf(0xFF.toByte()),
+        )
+        .build()
 
     /** Any Apple manufacturer data. */
     private fun appleFilter(): ScanFilter = ScanFilter.Builder()

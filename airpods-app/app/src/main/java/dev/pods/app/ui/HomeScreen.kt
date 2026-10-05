@@ -106,6 +106,9 @@ fun HomeScreen(
 
     val nearby = !state.isConnected && signal.lastSeen > 0 && now - signal.lastSeen < 30_000
     val live = state.isConnected || nearby
+    // AirPods only send readable battery while the case is open or now and then in use,
+    // so between those moments we show the last reading and say how old it is.
+    val fresh = signal.lastSeen > 0 && now - signal.lastSeen < 45_000
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
         LazyColumn(
@@ -121,7 +124,7 @@ fun HomeScreen(
                 Header(state, signal, nearby, now)
             }
             item(key = "hero") {
-                Hero(state, live)
+                Hero(state, live, fresh, signal.lastSeen, now)
             }
             item(key = "setup") {
                 SetupCards(permissions, actions)
@@ -276,7 +279,7 @@ private fun Header(state: PodsState, signal: Signal, nearby: Boolean, now: Long)
 }
 
 @Composable
-private fun Hero(state: PodsState, live: Boolean) {
+private fun Hero(state: PodsState, live: Boolean, fresh: Boolean, lastSeen: Long, now: Long) {
     val colors = Pods.colors
     Column(
         modifier = Modifier
@@ -287,12 +290,16 @@ private fun Hero(state: PodsState, live: Boolean) {
             .padding(top = 28.dp, bottom = 22.dp, start = 8.dp, end = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PodsComponentsRow(snapshot = state.snapshot, live = live)
+        PodsComponentsRow(snapshot = state.snapshot, live = live, showWear = fresh)
         Spacer(Modifier.height(18.dp))
-        val summary = if (state.snapshot == null && state.isConnected && state.headsetBattery != null) {
-            "Battery ${state.headsetBattery}% · reported by Android"
-        } else {
-            wearSummary(state.snapshot, state.isConnected)
+        val summary = when {
+            state.snapshot == null && state.isConnected && state.headsetBattery != null ->
+                "Battery ${state.headsetBattery}% · reported by Android"
+            state.snapshot != null && state.isConnected && !fresh && lastSeen > 0 ->
+                "Updated " + DateUtils.getRelativeTimeSpanString(
+                    lastSeen, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE,
+                ).toString().replaceFirstChar { it.lowercase() } + " · open case to refresh"
+            else -> wearSummary(state.snapshot, state.isConnected)
         }
         StatusPill(summary)
     }
@@ -401,8 +408,10 @@ private fun DiagnosticsSection(
     Section(
         header = "Diagnostics",
         footer = if (expanded) {
-            diagnostics.lastPacket?.let { "Last AirPods packet:\n$it" }
-                ?: "No AirPods packets received yet. Keep them out of the case near your phone."
+            listOfNotNull(
+                diagnostics.lastPacket?.let { "Last battery packet:\n$it" },
+                diagnostics.lastOtherPacket?.let { "Last encrypted packet:\n$it" },
+            ).joinToString("\n\n").ifEmpty { "No AirPods packets received yet. Keep them out of the case near your phone." }
         } else {
             null
         },
@@ -421,7 +430,8 @@ private fun DiagnosticsSection(
             SettingsRow(title = "Scan mode", value = diagnostics.strategy.label)
             SettingsRow(title = "Apple signals", value = diagnostics.appleSeen.toString())
             SettingsRow(title = "AirPods signals", value = diagnostics.podsSeen.toString())
-            SettingsRow(title = "Last AirPods signal", value = lastSignal)
+            SettingsRow(title = "Battery packets", value = diagnostics.batterySeen.toString())
+            SettingsRow(title = "Last battery packet", value = lastSignal)
             SettingsRow(title = "Battery from Android", value = state.headsetBattery?.let { "$it%" } ?: "—")
             SettingsRow(title = "Location", value = if (permissions.locationOn) "On" else "Off")
             SettingsRow(
