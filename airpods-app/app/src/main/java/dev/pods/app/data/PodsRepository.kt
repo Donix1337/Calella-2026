@@ -72,7 +72,13 @@ object PodsRepository {
         val current = _state.value
         if (current.connected == device) return
         if (device != null && current.connected?.address != device.address) tracker.reset()
-        _state.update { it.copy(connected = device, lastDevice = device ?: it.lastDevice) }
+        _state.update {
+            it.copy(
+                connected = device,
+                lastDevice = device ?: it.lastDevice,
+                headsetBattery = if (device == null) null else it.headsetBattery,
+            )
+        }
         save()
         WidgetUpdater.request(context, immediate = true)
     }
@@ -80,6 +86,13 @@ object PodsRepository {
     /** Lets screenshot tests render the UI and widget with sample data. */
     internal fun replaceStateForPreview(state: PodsState) {
         _state.value = state
+    }
+
+    fun setHeadsetBattery(context: Context, level: Int?) {
+        val value = level?.takeIf { it in 0..100 }
+        if (_state.value.headsetBattery == value) return
+        _state.update { it.copy(headsetBattery = value) }
+        WidgetUpdater.request(context)
     }
 
     fun refreshPhoneBattery(context: Context): Boolean {

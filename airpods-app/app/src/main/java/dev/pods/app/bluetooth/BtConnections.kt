@@ -36,6 +36,16 @@ object BtConnections {
         null
     }
 
+    const val ACTION_BATTERY_LEVEL_CHANGED = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED"
+    const val EXTRA_BATTERY_LEVEL = "android.bluetooth.device.extra.BATTERY_LEVEL"
+
+    /** Battery the headset reports to Android (hidden API, so best effort). */
+    fun systemBatteryLevel(device: BluetoothDevice): Int? = try {
+        (BluetoothDevice::class.java.getMethod("getBatteryLevel").invoke(device) as? Int)?.takeIf { it in 0..100 }
+    } catch (e: Throwable) {
+        null
+    }
+
     fun info(device: BluetoothDevice): DeviceInfo =
         DeviceInfo(displayName(device) ?: "AirPods", device.address)
 
@@ -70,7 +80,10 @@ object BtConnections {
                     override fun onServiceConnected(p: Int, proxy: BluetoothProfile) {
                         try {
                             if (found == null) {
-                                found = proxy.connectedDevices.firstOrNull { isApple(it) }?.let { info(it) }
+                                proxy.connectedDevices.firstOrNull { isApple(it) }?.let { device ->
+                                    found = info(device)
+                                    systemBatteryLevel(device)?.let { PodsRepository.setHeadsetBattery(app, it) }
+                                }
                             }
                         } catch (e: SecurityException) {
                             // Permission revoked mid-flight; treat as not connected.

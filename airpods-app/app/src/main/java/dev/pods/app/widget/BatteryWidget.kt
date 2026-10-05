@@ -102,6 +102,12 @@ private fun items(state: PodsState, phoneName: String): List<WidgetItem> {
     val s = state.snapshot
     val live = state.isConnected
     val phone = WidgetItem(phoneName, R.drawable.ic_glyph_phone, state.phone.level, state.phone.charging, true)
+    if (s == null && state.isConnected && state.headsetBattery != null) {
+        return listOf(
+            WidgetItem(state.shortModelName, R.drawable.ic_stat_pods, state.headsetBattery, false, true),
+            phone,
+        )
+    }
     if (s != null && s.isHeadphones) {
         return listOf(
             WidgetItem(state.shortModelName, R.drawable.ic_glyph_headphones, s.single, s.singleCharging, live),

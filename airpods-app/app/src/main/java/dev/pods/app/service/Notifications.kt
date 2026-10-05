@@ -33,7 +33,7 @@ object Notifications {
     }
 
     fun statusText(state: PodsState): String {
-        val s = state.snapshot ?: return "Connected"
+        val s = state.snapshot ?: return state.headsetBattery?.let { "Battery $it%" } ?: "Connected"
         fun part(label: String, level: Int?, charging: Boolean) =
             level?.let { "$label $it%" + if (charging) " ⚡" else "" }
         val parts = if (s.isHeadphones) {

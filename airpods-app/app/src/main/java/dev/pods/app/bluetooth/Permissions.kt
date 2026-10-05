@@ -3,6 +3,7 @@ package dev.pods.app.bluetooth
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -38,6 +39,7 @@ data class PermissionSnapshot(
     val overlay: Boolean,
     val batteryUnrestricted: Boolean,
     val bluetoothEnabled: Boolean,
+    val locationOn: Boolean = true,
 ) {
     companion object {
         fun read(context: Context) = PermissionSnapshot(
@@ -46,6 +48,7 @@ data class PermissionSnapshot(
             overlay = Permissions.canDrawOverlays(context),
             batteryUnrestricted = Permissions.isBatteryUnrestricted(context),
             bluetoothEnabled = BtConnections.isBluetoothOn(context),
+            locationOn = context.getSystemService(LocationManager::class.java)?.isLocationEnabled == true,
         )
     }
 }

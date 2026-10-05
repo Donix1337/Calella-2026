@@ -43,7 +43,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.pods.app.BuildConfig
 import dev.pods.app.bluetooth.PermissionSnapshot
+import dev.pods.app.bluetooth.ScanDiagnostics
 import dev.pods.app.data.PodsState
 import dev.pods.app.data.SettingsValues
 import dev.pods.app.data.Signal
@@ -78,6 +83,7 @@ interface HomeActions {
     fun requestBatteryUnrestricted()
     fun openBluetoothSettings()
     fun addWidget()
+    fun openLocationSettings() {}
 }
 
 @Composable
@@ -88,6 +94,7 @@ fun HomeScreen(
     permissions: PermissionSnapshot,
     actions: HomeActions,
     liveClock: Boolean = true,
+    diagnostics: ScanDiagnostics = ScanDiagnostics(),
 ) {
     val colors = Pods.colors
     val listState = rememberLazyListState()
@@ -118,6 +125,9 @@ fun HomeScreen(
             }
             item(key = "setup") {
                 SetupCards(permissions, actions)
+                if (state.isConnected && state.snapshot == null) {
+                    WaitingCard(permissions, actions)
+                }
             }
             item(key = "ear") {
                 Section(header = "Ear Detection", modifier = Modifier.padding(top = 28.dp)) {
@@ -193,6 +203,9 @@ fun HomeScreen(
             }
             item(key = "about") {
                 AboutSection(state, signal, now, actions)
+            }
+            item(key = "diagnostics") {
+                DiagnosticsSection(diagnostics, state, permissions, now)
             }
             item(key = "footer") {
                 Text(
@@ -276,7 +289,12 @@ private fun Hero(state: PodsState, live: Boolean) {
     ) {
         PodsComponentsRow(snapshot = state.snapshot, live = live)
         Spacer(Modifier.height(18.dp))
-        StatusPill(wearSummary(state.snapshot, state.isConnected))
+        val summary = if (state.snapshot == null && state.isConnected && state.headsetBattery != null) {
+            "Battery ${state.headsetBattery}% · reported by Android"
+        } else {
+            wearSummary(state.snapshot, state.isConnected)
+        }
+        StatusPill(summary)
     }
 }
 
@@ -334,6 +352,87 @@ private fun SetupCard(
             Text(body, style = PodsType.subhead, color = colors.secondaryLabel)
             Spacer(Modifier.height(6.dp))
             TextButton(action, onAction, modifier = Modifier.offset(x = (-8).dp))
+        }
+    }
+}
+
+@Composable
+private fun WaitingCard(permissions: PermissionSnapshot, actions: HomeActions) {
+    val colors = Pods.colors
+    if (!permissions.locationOn) {
+        SetupCard(
+            icon = Icons.Rounded.LocationOn,
+            tint = colors.blue,
+            title = "Waiting for battery info",
+            body = "Some phones only pass Bluetooth scans to apps while Location is on. " +
+                "Turn it on, then take an AirPod out or open the case next to your phone.",
+            action = "Location Settings",
+            onAction = actions::openLocationSettings,
+        )
+    } else {
+        SetupCard(
+            icon = Icons.Rounded.Bluetooth,
+            tint = colors.blue,
+            title = "Waiting for battery info",
+            body = "Take an AirPod out or open the case next to your phone. " +
+                "If nothing shows up, check Diagnostics at the bottom of this page.",
+            action = "Bluetooth Settings",
+            onAction = actions::openBluetoothSettings,
+        )
+    }
+}
+
+@Composable
+private fun DiagnosticsSection(
+    diagnostics: ScanDiagnostics,
+    state: PodsState,
+    permissions: PermissionSnapshot,
+    now: Long,
+) {
+    val colors = Pods.colors
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val lastSignal = when {
+        diagnostics.lastPacketAt == 0L -> "None yet"
+        else -> {
+            val ago = ((now - diagnostics.lastPacketAt) / 1000).coerceAtLeast(0)
+            "${diagnostics.lastRssi ?: "?"} dBm · ${if (ago < 5) "now" else "${ago}s ago"}"
+        }
+    }
+    Section(
+        header = "Diagnostics",
+        footer = if (expanded) {
+            diagnostics.lastPacket?.let { "Last AirPods packet:\n$it" }
+                ?: "No AirPods packets received yet. Keep them out of the case near your phone."
+        } else {
+            null
+        },
+        modifier = Modifier.padding(top = 28.dp),
+    ) {
+        SettingsRow(
+            title = "Scanner",
+            value = diagnostics.status,
+            icon = Icons.Rounded.BugReport,
+            iconTint = colors.gray,
+            divider = expanded,
+            chevron = !expanded,
+            onClick = { expanded = !expanded },
+        )
+        if (expanded) {
+            SettingsRow(title = "Scan mode", value = diagnostics.strategy.label)
+            SettingsRow(title = "Apple signals", value = diagnostics.appleSeen.toString())
+            SettingsRow(title = "AirPods signals", value = diagnostics.podsSeen.toString())
+            SettingsRow(title = "Last AirPods signal", value = lastSignal)
+            SettingsRow(title = "Battery from Android", value = state.headsetBattery?.let { "$it%" } ?: "—")
+            SettingsRow(title = "Location", value = if (permissions.locationOn) "On" else "Off")
+            SettingsRow(
+                title = "Hardware filtering",
+                value = when (diagnostics.offloadedFiltering) {
+                    true -> "Supported"
+                    false -> "Not supported"
+                    null -> "—"
+                },
+                divider = false,
+            )
         }
     }
 }

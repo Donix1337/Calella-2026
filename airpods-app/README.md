@@ -53,6 +53,21 @@ While your AirPods are connected, a small foreground service (`service/PodsServi
 keeps scanning so ear detection, the notification and the widget stay current. It starts
 when Android reports the AirPods connected and stops shortly after they disconnect.
 
+### Troubleshooting
+
+If your AirPods show as connected but no battery appears:
+
+1. Take an AirPod out, or open the case lid, next to the phone. AirPods only broadcast
+   battery while they're out of a closed case.
+2. Turn on **Location**. Some phones only pass Bluetooth scans to apps while it's on.
+3. Open **Diagnostics** at the bottom of the app. "AirPods signals" counts the battery
+   broadcasts the phone has received. If it stays at 0, the app automatically tries
+   broader scan modes (hardware filter → Apple filter → software filter) and remembers
+   the one that works.
+
+Until the broadcast comes through, Pods shows the single battery level Android itself
+gets from the AirPods, when the phone reports one.
+
 ### Limitations
 
 - Battery is reported in 10% steps; that's all AirPods share with non-Apple devices.

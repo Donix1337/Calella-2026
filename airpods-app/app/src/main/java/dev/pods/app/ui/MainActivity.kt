@@ -57,10 +57,11 @@ class MainActivity : ComponentActivity(), HomeActions {
                 val state by PodsRepository.state.collectAsStateWithLifecycle()
                 val signal by PodsRepository.signal.collectAsStateWithLifecycle()
                 val settings by PodsSettings.values.collectAsStateWithLifecycle()
+                val diagnostics by PodsScanner.diagnostics.collectAsStateWithLifecycle()
                 val perms = permissions ?: PermissionSnapshot.read(this)
                 Crossfade(targetState = perms.bluetooth, label = "root") { ready ->
                     if (ready) {
-                        HomeScreen(state, signal, settings, perms, this@MainActivity)
+                        HomeScreen(state, signal, settings, perms, this@MainActivity, diagnostics = diagnostics)
                     } else {
                         OnboardingScreen(deniedBefore = deniedBefore, onContinue = this@MainActivity::onContinue)
                     }
@@ -128,6 +129,10 @@ class MainActivity : ComponentActivity(), HomeActions {
             Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
         )
         if (!asked) openAppSettings()
+    }
+
+    override fun openLocationSettings() {
+        launch(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
     }
 
     override fun openBluetoothSettings() {

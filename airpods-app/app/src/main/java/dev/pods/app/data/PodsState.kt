@@ -62,6 +62,8 @@ data class PodsState(
     /** The last AirPods we saw connected, kept for naming when disconnected. */
     val lastDevice: DeviceInfo? = null,
     val phone: PhoneBattery = PhoneBattery(),
+    /** Overall level Android gets from the AirPods over the headset profile, if any. */
+    val headsetBattery: Int? = null,
 ) {
     val isConnected: Boolean get() = connected != null
 
